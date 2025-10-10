@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email | Cryptware</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="./js/utils/toast.js"></script>
+    <style>
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .trust-card {
+            background: white;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .otp-input {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .otp-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            background: white;
+        }
+        .otp-input:not(:placeholder-shown) {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            border-color: #3b82f6;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body class="font-['Inter'] bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <!-- Trust Navigation -->
+        <nav class="glass-effect rounded-2xl mb-6">
+            <div class="px-6 py-4">
+                <a href="index.html" class="flex items-center space-x-3">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-full flex items-center space-x-2">
+                        <i class="fas fa-shield-check"></i>
+                        <span class="font-semibold text-sm">Secure Verification</span>
+                    </div>
+                    <span class="text-xl font-bold text-gray-900">Cryptware</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Verification Card -->
+        <div class="trust-card rounded-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-center">
+                <div class="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-envelope-open-text text-white text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white mb-2">Verify Your Email</h1>
+                <p class="text-blue-100" id="emailDisplay">We sent a 6-digit code to your email address</p>
+            </div>
+
+            <div class="p-8">
+                <!-- OTP Input -->
+                <div class="space-y-6">
+                    <div>
+                        <label class="flex items-center justify-center text-sm font-semibold text-gray-700 mb-4">
+                            <i class="fas fa-key text-blue-500 mr-2"></i>
+                            Enter Verification Code
+                        </label>
+                        <div class="flex justify-center space-x-3" id="otpContainer">
+                            <input type="text" maxlength="1" class="otp-input text-center text-xl font-bold w-12 h-12 rounded-lg" data-index="0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                            <input type="text" maxlength="1" class="otp-input text-center text-xl font-bold w-12 h-12 rounded-lg" data-index="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                            <input type="text" maxlength="1" class="otp-input text-center text-xl font-bold w-12 h-12 rounded-lg" data-index="2" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                            <input type="text" maxlength="1" class="otp-input text-center text-xl font-bold w-12 h-12 rounded-lg" data-index="3" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                            <input type="text" maxlength="1" class="otp-input text-center text-xl font-bold w-12 h-12 rounded-lg" data-index="4" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                            <input type="text" maxlength="1" class="otp-input text-center text-xl font-bold w-12 h-12 rounded-lg" data-index="5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        </div>
+                    </div>
+
+                    <!-- Countdown Timer -->
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600" id="timerText">
+                            <i class="fas fa-clock text-blue-500 mr-1"></i>
+                            Code expires in: <span id="countdown" class="font-semibold text-blue-600">15:00</span>
+                        </p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-3">
+                        <button type="button" onclick="verifyOTP()" class="btn-primary text-white font-semibold py-4 px-6 rounded-lg w-full flex items-center justify-center space-x-2" id="verifyBtn">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Verify & Activate Account</span>
+                        </button>
+                        
+                        <button type="button" onclick="resendOTP()" class="btn-secondary text-gray-700 font-semibold py-4 px-6 rounded-lg w-full flex items-center justify-center space-x-2" id="resendBtn" disabled>
+                            <i class="fas fa-redo"></i>
+                            <span>Resend Code <span id="resendTimer" class="text-gray-500">(60s)</span></span>
+                        </button>
+                    </div>
+
+                    <!-- Security Features -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-start space-x-3">
+                            <i class="fas fa-shield-alt text-blue-500 mt-1"></i>
+                            <div>
+                                <h4 class="font-semibold text-blue-900 text-sm mb-1">Secure Verification</h4>
+                                <p class="text-blue-700 text-xs">Your verification code is encrypted and will expire automatically for security.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trust Footer -->
+        <div class="text-center mt-6">
+            <div class="flex justify-center space-x-6 mb-4 flex-wrap">
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-lock text-green-500 mr-2"></i> End-to-End Encryption
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-user-shield text-blue-500 mr-2"></i> Privacy Protected
+                </div>
+            </div>
+            <p class="text-xs text-gray-500">Your security is our priority. We never share your verification code.</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import Toast from './js/utils/toast.js';
+    
+        let timer;
+        let countdown = 15 * 60;
+        let resendCountdown = 60;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const partnerId = urlParams.get('partnerId');
+        const email = urlParams.get('email');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (email) {
+                document.getElementById('emailDisplay').textContent = `We sent a 6-digit code to ${email}`;
+            }
+
+            setupOTPInputs();
+            startCountdown();
+            startResendTimer();
+        });
+
+        function setupOTPInputs() {
+            const inputs = document.querySelectorAll('#otpContainer input');
+            
+            inputs.forEach((input, index) => {
+                input.addEventListener('input', (e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    e.target.value = value;
+                    
+                    if (value.length === 1 && index < inputs.length - 1) {
+                        inputs[index + 1].focus();
+                    }
+                    
+                    if (index === inputs.length - 1 && value.length === 1) {
+                        const otpCode = getOTPCode();
+                        if (otpCode.length === 6) {
+                            setTimeout(() => {
+                                verifyOTP();
+                            }, 500);
+                        }
+                    }
+                });
+                
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                        inputs[index - 1].focus();
+                    }
+                });
+
+                input.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const pasteData = e.clipboardData.getData('text').replace(/[^0-9]/g, '');
+                    if (pasteData.length === 6) {
+                        inputs.forEach((input, idx) => {
+                            if (idx < 6) input.value = pasteData[idx] || '';
+                        });
+                        inputs[5].focus();
+                    }
+                });
+            });
+        }
+
+        function getOTPCode() {
+            const inputs = document.querySelectorAll('#otpContainer input');
+            return Array.from(inputs).map(input => input.value).join('');
+        }
+
+        function startCountdown() {
+            timer = setInterval(() => {
+                countdown--;
+                
+                const minutes = Math.floor(countdown / 60);
+                const seconds = countdown % 60;
+                
+                document.getElementById('countdown').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    document.getElementById('timerText').innerHTML = 
+                        '<span class="text-red-600 font-semibold"><i class="fas fa-exclamation-triangle mr-1"></i>Code expired. Please request a new one.</span>';
+                }
+            }, 1000);
+        }
+
+        function startResendTimer() {
+            const resendBtn = document.getElementById('resendBtn');
+            const resendTimer = document.getElementById('resendTimer');
+            
+            const resendInterval = setInterval(() => {
+                resendCountdown--;
+                resendTimer.textContent = `(${resendCountdown}s)`;
+                
+                if (resendCountdown <= 0) {
+                    clearInterval(resendInterval);
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = '<i class="fas fa-redo"></i><span>Resend Code</span>';
+                }
+            }, 1000);
+        }
+
+        async function verifyOTP() {
+            const otpCode = getOTPCode();
+            const verifyBtn = document.getElementById('verifyBtn');
+            
+            if (otpCode.length !== 6) {
+                Toast.error('Please enter the complete 6-digit verification code');
+                return;
+            }
+
+            verifyBtn.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div><span>Verifying...</span>';
+            verifyBtn.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/verify-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        otpCode: otpCode,
+                        partnerId: partnerId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    verifyBtn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verified Successfully!</span>';
+                    
+                    Toast.success('🎉 Account Verified Successfully! Redirecting to login...', 4000);
+                    
+                    setTimeout(() => {
+                        window.location.href = 'login.html?verified=true&email=' + encodeURIComponent(email);
+                    }, 3000);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                Toast.error('Verification failed: ' + error.message);
+                verifyBtn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verify & Activate Account</span>';
+                verifyBtn.disabled = false;
+            }
+        }
+
+        async function resendOTP() {
+            const resendBtn = document.getElementById('resendBtn');
+            
+            resendBtn.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div><span>Sending...</span>';
+            resendBtn.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/send-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        partnerId: partnerId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Toast.success('✅ New verification code sent to your email!');
+                    
+                    clearInterval(timer);
+                    countdown = 15 * 60;
+                    resendCountdown = 60;
+                    startCountdown();
+                    startResendTimer();
+                    
+                    const inputs = document.querySelectorAll('#otpContainer input');
+                    inputs.forEach(input => input.value = '');
+                    inputs[0].focus();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                Toast.error('Failed to resend code: ' + error.message);
+                resendBtn.innerHTML = '<i class="fas fa-redo"></i><span>Resend Code</span>';
+                resendBtn.disabled = false;
+            }
+        }
+
+        window.verifyOTP = verifyOTP;
+        window.resendOTP = resendOTP;
+    </script>
+</body>
+</html>

@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internal Dashboard | Crypytware</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --primary-dark: #1e40af;
+            --primary-light: #dbeafe;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 4px solid transparent;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15);
+        }
+
+        .trust-badge {
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .edit-btn {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .edit-btn:hover {
+            background: #bfdbfe;
+            transform: translateY(-1px);
+        }
+
+        .delete-btn {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .delete-btn:hover {
+            background: #fecaca;
+            transform: translateY(-1px);
+        }
+
+        .view-btn {
+            background: #f0f9ff;
+            color: #0369a1;
+        }
+
+        .view-btn:hover {
+            background: #e0f2fe;
+            transform: translateY(-1px);
+        }
+
+        .convert-btn {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .convert-btn:hover {
+            background: #a7f3d0;
+            transform: translateY(-1px);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-new {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .status-contacted {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-converted {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .type-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .type-partner {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .type-internal {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+
+        .trust-indicator {
+            display: inline-flex;
+            align-items: center;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            color: #0369a1;
+            margin: 0 4px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        /* Payment progress */
+        .payment-progress {
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            background: #e5e7eb;
+        }
+
+        .payment-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            transition: width 0.5s ease;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .mobile-stack {
+                flex-direction: column;
+            }
+            
+            .mobile-full {
+                width: 100%;
+            }
+            
+            .mobile-text-center {
+                text-align: center;
+            }
+            
+            .mobile-p-4 {
+                padding: 1rem;
+            }
+            
+            .stat-card {
+                margin-bottom: 1rem;
+            }
+
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .action-buttons button {
+                width: 100%;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 1rem;
+            }
+        }
+
+        /* Animation for elements */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        /* Other industry field */
+        #otherIndustryField {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        #otherIndustryField.show {
+            max-height: 100px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen font-['Inter']">
+    <!-- Enhanced Trust Navigation -->
+    <nav class="bg-white border-b shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center mobile-stack">
+                <div class="flex items-center space-x-4 mobile-stack mobile-text-center">
+                    <div class="trust-badge p-2 rounded-lg">
+                        <i class="fas fa-users-cog text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">Crypytware Internal</h1>
+                        <p class="text-xs text-gray-500">Sales & Partner Management Portal</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 mobile-stack">
+                    <div class="text-right mobile-text-center">
+                        <span class="text-sm text-gray-600" id="userName"></span>
+                        <div class="flex items-center justify-center mt-1">
+                            <i class="fas fa-shield-alt text-green-500 mr-1 text-xs"></i>
+                            <span class="text-xs text-green-600">Admin Access</span>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition flex items-center">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Enhanced Header Section -->
+        <div class="text-center mb-12 fade-in">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Sales Pipeline Management</h1>
+            <p class="text-gray-600 text-lg max-w-3xl mx-auto">
+                Track leads, manage partner referrals, record payments, and maintain complete transparency across all transactions.
+            </p>
+            
+            <!-- Trust Indicators -->
+            <div class="flex justify-center mt-6 space-x-3 flex-wrap">
+                <span class="trust-indicator">
+                    <i class="fas fa-handshake mr-1"></i> Partner Transparency
+                </span>
+                <span class="trust-indicator">
+                    <i class="fas fa-chart-line mr-1"></i> Real-Time Analytics
+                </span>
+                <span class="trust-indicator">
+                    <i class="fas fa-lock mr-1"></i> Secure Processing
+                </span>
+            </div>
+        </div>
+
+        <!-- Enhanced Quick Actions Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <!-- Lead Management Card -->
+            <div class="glass-card rounded-2xl p-6 fade-in">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-user-plus text-blue-500 mr-2"></i>Lead Management
+                    </h3>
+                    <div class="bg-green-100 text-green-600 px-2 py-1 rounded text-xs flex items-center">
+                        <i class="fas fa-bolt mr-1"></i>Quick Actions
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-3">
+                    <a href="internal-add-lead.html" class="trust-badge text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center hover:shadow-lg">
+                        <i class="fas fa-handshake mr-2"></i>Add Partner Referral Lead
+                    </a>
+                    <a href="internal-add-lead.html" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center">
+                        <i class="fas fa-building mr-2"></i>Add Internal Direct Lead
+                    </a>
+                    <button onclick="internalDashboard.showRecordCodeModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center">
+                        <i class="fas fa-qrcode mr-2"></i>Record Referral Code
+                    </button>
+                </div>
+            </div>
+
+            <!-- Payment Management Card -->
+            <div class="glass-card rounded-2xl p-6 fade-in">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-money-bill-wave text-green-500 mr-2"></i>Payment Tracking
+                    </h3>
+                    <div class="bg-purple-100 text-purple-600 px-2 py-1 rounded text-xs flex items-center">
+                        <i class="fas fa-percentage mr-1"></i>5% Commission
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-user-tag mr-1 text-gray-500"></i>Select Lead/Referral
+                        </label>
+                        <select id="paymentLeadSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Choose lead...</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-money-bill mr-1 text-gray-500"></i>Amount (₦)
+                            </label>
+                            <input type="number" id="paymentAmount" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="0.00" oninput="internalDashboard.calculateCommission()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-credit-card mr-1 text-gray-500"></i>Method
+                            </label>
+                            <select id="paymentMethod" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="bank-transfer">Bank Transfer</option>
+                                <option value="card">Credit Card</option>
+                                <option value="cash">Cash</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="internalDashboard.showPaymentModal()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center">
+                        <i class="fas fa-save mr-2"></i>Record Payment
+                    </button>
+                    <div id="commissionPreview" class="p-3 bg-blue-50 rounded-lg text-sm text-blue-700 hidden fade-in">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <span>Partner commission: <strong id="commissionAmountPreview">₦0</strong> (5%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card glass-card rounded-2xl p-6 fade-in" style="border-left-color: #3b82f6;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" id="totalLeads">0</h3>
+                        <p class="text-gray-600">Total Leads</p>
+                    </div>
+                    <div class="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-users text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4 text-blue-600 text-sm">
+                    <i class="fas fa-chart-line mr-1"></i>
+                    <span>All active prospects</span>
+                </div>
+            </div>
+
+            <div class="stat-card glass-card rounded-2xl p-6 fade-in" style="border-left-color: #f59e0b;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" id="pendingLeads">0</h3>
+                        <p class="text-gray-600">Needs Follow-up</p>
+                    </div>
+                    <div class="bg-yellow-100 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4 text-yellow-600 text-sm">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    <span>Require attention</span>
+                </div>
+            </div>
+
+            <div class="stat-card glass-card rounded-2xl p-6 fade-in" style="border-left-color: #10b981;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" id="convertedLeads">0</h3>
+                        <p class="text-gray-600">Converted</p>
+                    </div>
+                    <div class="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4 text-green-600 text-sm">
+                    <i class="fas fa-trophy mr-1"></i>
+                    <span>Successful deals</span>
+                </div>
+            </div>
+
+            <div class="stat-card glass-card rounded-2xl p-6 fade-in" style="border-left-color: #8b5cf6;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" id="partnerPayouts">₦0</h3>
+                        <p class="text-gray-600">Partner Payouts</p>
+                    </div>
+                    <div class="bg-purple-100 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-hand-holding-usd text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4 text-purple-600 text-sm">
+                    <i class="fas fa-money-check-alt mr-1"></i>
+                    <span>Total commissions</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Commission Calculator -->
+        <div class="glass-card rounded-2xl p-6 mb-8 fade-in">
+            <div class="flex items-center justify-between mb-6 mobile-stack">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-calculator text-blue-500 mr-2"></i>Commission Calculator
+                </h3>
+                <div class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm flex items-center">
+                    <i class="fas fa-handshake mr-1"></i>5% Partner Commission
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Deal Value (₦)</label>
+                    <input type="number" id="dealValue" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                           placeholder="Enter amount" oninput="internalDashboard.calculateDealCommission()">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Partner Commission</label>
+                    <div class="bg-green-50 p-4 rounded-lg text-center border border-green-200">
+                        <span id="commissionAmount" class="text-2xl font-bold text-green-600">₦0</span>
+                        <p class="text-xs text-green-600 mt-1 flex items-center justify-center">
+                            <i class="fas fa-percentage mr-1"></i>5% of deal value
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Company Earnings</label>
+                    <div class="bg-blue-50 p-4 rounded-lg text-center border border-blue-200">
+                        <span id="companyEarnings" class="text-2xl font-bold text-blue-600">₦0</span>
+                        <p class="text-xs text-blue-600 mt-1 flex items-center justify-center">
+                            <i class="fas fa-chart-line mr-1"></i>95% of deal value
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                    <div>
+                        <p class="text-sm text-gray-700 font-medium">Transparency Notice</p>
+                        <p class="text-sm text-gray-600 mt-1">
+                            This calculation is automatically shared with partners for complete transparency. Both parties see the same numbers.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Leads & Referrals Table -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-lg fade-in">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                <div class="flex justify-between items-center mobile-stack">
+                    <div>
+                        <h2 class="text-xl font-semibold text-white flex items-center">
+                            <i class="fas fa-table mr-2"></i>Active Leads & Referrals
+                        </h2>
+                        <p class="text-blue-100">Manage and track all prospect interactions</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Live</span>
+                        <i class="fas fa-sync-alt text-blue-200 cursor-pointer" id="refreshTable" title="Refresh data"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto table-responsive">
+                <table class="w-full">
+                    <thead class="bg-blue-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Company & Contact</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Type</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Referral Code</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Payments</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100" id="leadsTableBody">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="emptyState" class="px-6 py-12 text-center hidden">
+                <div class="text-blue-200 text-5xl mb-4">
+                    <i class="fas fa-inbox"></i>
+                </div>
+                <h3 class="text-gray-600 text-lg mb-2">No active leads yet</h3>
+                <p class="text-gray-500 text-sm mb-4">Start by creating your first lead to track progress and earnings</p>
+                <a href="internal-add-lead.html" class="trust-badge inline-flex items-center px-4 py-2 text-white text-sm font-semibold rounded-lg">
+                    <i class="fas fa-plus mr-2"></i>Create First Lead
+                </a>
+            </div>
+        </div>
+
+        <!-- Enhanced Trust Footer -->
+        <div class="text-center mt-12 pt-8 border-t border-gray-200">
+            <div class="flex justify-center space-x-6 mb-4 flex-wrap">
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-shield-check text-green-500 mr-2"></i> Bank-Level Security
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-sync-alt text-blue-500 mr-2"></i> Real-Time Updates
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-user-shield text-purple-500 mr-2"></i> Partner Transparency
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-chart-bar text-orange-500 mr-2"></i> Detailed Reporting
+                </div>
+            </div>
+            <p class="text-xs text-gray-500">© 2024 Crypytware. All partner transactions secured with complete transparency and audit trails.</p>
+        </div>
+    </main>
+
+    <!-- Record Code Modal -->
+    <div id="recordCodeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-qrcode text-purple-500 mr-2"></i>Record Referral Code
+                </h3>
+                <button onclick="internalDashboard.hideRecordCodeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-gray-600 mb-6">Enter the code provided by the prospect to attribute them to a partner</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Referral Code *</label>
+                        <input type="text" id="referralCodeInput" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                               placeholder="Enter code (e.g., CRYPT-ABC123)">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Lead *</label>
+                        <select id="leadSelect" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <option value="">Select a lead</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="internalDashboard.hideRecordCodeModal()" class="text-gray-600 hover:text-gray-800 font-semibold py-2 px-4 rounded-lg transition">
+                    Cancel
+                </button>
+                <button onclick="internalDashboard.recordReferralCode()" class="trust-badge text-white font-semibold py-2 px-6 rounded-lg transition flex items-center">
+                    <i class="fas fa-save mr-2"></i>Record Code
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="convertLeadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>Convert Lead to Customer
+                </h3>
+                <button onclick="internalDashboard.hideConvertModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-gray-600 mb-6">Enter the final deal details to convert this lead and calculate partner commission</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-money-bill-wave mr-1 text-green-500"></i>Final Deal Value (₦) *
+                        </label>
+                        <input type="number" id="convertDealValue" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               placeholder="Enter total contract value" min="0" step="1000">
+                        <p class="text-xs text-gray-500 mt-1">Enter the full contract amount including any payments already made</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-calendar mr-1 text-blue-500"></i>Conversion Date *
+                        </label>
+                        <input type="date" id="convertPaymentDate" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <!-- Balance Information -->
+                    <div id="balanceInformation" class="p-3 bg-yellow-50 rounded-lg border border-yellow-200 hidden">
+                        <!-- Balance info will be dynamically inserted here -->
+                    </div>
+                    
+                    <!-- Commission Preview -->
+                    <div id="convertCommissionPreview" class="p-4 bg-green-50 rounded-lg border border-green-200 hidden">
+                        <h4 class="font-semibold text-green-900 mb-3">Commission Breakdown</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="text-green-700">Total Deal Value:</div>
+                            <div class="font-medium" id="previewDealTotal">-</div>
+                            
+                            <div class="text-green-700">Partner Commission (5%):</div>
+                            <div class="font-medium text-green-600" id="convertCommissionAmount">₦0</div>
+                            
+                            <div class="text-green-700">Company Earnings (95%):</div>
+                            <div class="font-medium" id="convertCompanyEarnings">₦0</div>
+                        </div>
+                        <div class="mt-3 p-2 bg-green-100 rounded text-xs text-green-800">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            This commission will be immediately available to the partner for withdrawal
+                        </div>
+                    </div>
+                    
+                    <!-- Validation Rules -->
+                    <div class="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <h4 class="font-semibold text-blue-900 text-sm mb-2">💡 Conversion Guidelines</h4>
+                        <ul class="text-xs text-blue-700 space-y-1">
+                            <li>• Enter the <strong>total contract value</strong>, not just remaining balance</li>
+                            <li>• System will automatically calculate any balance remaining</li>
+                            <li>• Partner earns 5% commission on the full deal value</li>
+                            <li>• Conversion cannot be reversed once confirmed</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="internalDashboard.hideConvertModal()" class="text-gray-600 hover:text-gray-800 font-semibold py-2 px-4 rounded-lg transition">
+                    Cancel
+                </button>
+                <button onclick="internalDashboard.confirmConvertLead()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition flex items-center">
+                    <i class="fas fa-check mr-2"></i>Convert Lead
+                </button>
+            </div>
+        </div>
+    </div>
+    
+
+    <!-- Payment Confirmation Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-money-check text-purple-500 mr-2"></i>Confirm Payment
+                </h3>
+                <button onclick="internalDashboard.hidePaymentModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-600">Lead:</span>
+                            <p class="font-medium" id="paymentLeadName">-</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Amount:</span>
+                            <p class="font-medium" id="paymentAmountDisplay">₦0</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Method:</span>
+                            <p class="font-medium" id="paymentMethodDisplay">-</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Commission:</span>
+                            <p class="font-medium text-green-600" id="paymentCommissionDisplay">₦0</p>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600">This payment will be recorded and the partner commission will be calculated automatically.</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="internalDashboard.hidePaymentModal()" class="text-gray-600 hover:text-gray-800 font-semibold py-2 px-4 rounded-lg transition">
+                    Cancel
+                </button>
+                <button onclick="internalDashboard.confirmPayment()" class="trust-badge text-white font-semibold py-2 px-6 rounded-lg transition flex items-center">
+                    <i class="fas fa-check mr-2"></i>Confirm Payment
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/toast.js"></script>
+    <script src="js/internal-dash.js"></script>
+    <script src="js/payment-system.js"></script>
+</body>
+</html>

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Login | Cryptware</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script type="module" src="./js/config.js"></script>
+    <script type="module" src="./js/supabase-client.js"></script>
+    <script type="module" src="./js/utils/toast.js"></script>
+    <script type="module" src="./js/auth-manager.js"></script>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+        }
+
+        .trust-badge {
+            background: var(--primary-gradient);
+        }
+
+        .tab-content { 
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .tab-content.active { 
+            display: block; 
+        }
+        
+        .tab-button {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .tab-button.active {
+            background-color: #eff6ff;
+            color: #2563eb;
+            border-bottom: 3px solid #2563eb;
+        }
+        
+        .tab-button:hover:not(.active) {
+            background-color: #f8fafc;
+            color: #374151;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 to-blue-950 min-h-screen flex items-center justify-center p-4 font-['Inter']">
+    <div class="w-full max-w-md">
+        <!-- Logo & Trust Badge -->
+        <div class="text-center mb-8">
+            <div class="trust-badge inline-flex items-center px-4 py-2 rounded-full mb-4">
+                <i class="fas fa-shield-alt text-white mr-2"></i>
+                <span class="text-white text-sm font-medium">Enterprise Secure</span>
+            </div>
+            <h1 class="text-3xl font-bold text-white mb-2">Cryptware</h1>
+            <p class="text-blue-200 text-sm uppercase tracking-widest">Partner Portal</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="glass-card rounded-2xl shadow-2xl overflow-hidden">
+            <!-- Tab Navigation -->
+            <div class="flex border-b">
+                <button id="partnerTab" class="tab-button active flex-1 py-4 font-medium text-center">
+                    <i class="fas fa-handshake mr-2"></i>Partner
+                </button>
+                <button id="internalTab" class="tab-button flex-1 py-4 font-medium text-center text-gray-500">
+                    <i class="fas fa-users mr-2"></i>Internal
+                </button>
+            </div>
+
+            <!-- Forms -->
+            <div class="p-6 md:p-8">
+                <!-- Partner Login Form -->
+                <form id="partnerLoginForm" class="tab-content active">
+                    <div class="mb-5">
+                        <label for="partnerEmail" class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-envelope text-blue-500 mr-1"></i>Email Address
+                        </label>
+                        <input type="email" id="partnerEmail" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                               placeholder="your@company.com"
+                               autocomplete="email">
+                        <div id="partnerEmailError" class="error-message hidden"></div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="partnerPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-key text-blue-500 mr-1"></i>Password
+                        </label>
+                        <input type="password" id="partnerPassword" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                               placeholder="••••••••"
+                               autocomplete="current-password">
+                        <div id="partnerPasswordError" class="error-message hidden"></div>
+                    </div>
+                    
+                    <!-- Forgot Password Link -->
+                    <div class="mb-6 text-right">
+                        <button type="button" onclick="openForgotPassword('partner')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                            <i class="fas fa-key mr-1"></i>Forgot your password?
+                        </button>
+                    </div>
+
+                    <button type="submit" id="partnerSubmitBtn"
+                            class="w-full trust-badge text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-sign-in-alt mr-2"></i> 
+                        <span class="btn-text">Partner Login</span>
+                        <div class="loading-spinner hidden ml-2">
+                            <i class="fas fa-spinner"></i>
+                        </div>
+                    </button>
+
+                    <div class="mt-4 text-center">
+                        <p class="text-sm text-gray-600">
+                            Don't have an account? 
+                            <a href="partner-signup.html" class="text-blue-600 hover:text-blue-700 font-medium transition-colors">
+                                <i class="fas fa-user-plus mr-1"></i>Apply Now
+                            </a>
+                        </p>
+                    </div>
+                </form>
+
+                <!-- Internal Login Form -->
+                <form id="internalLoginForm" class="tab-content">
+                    <div class="mb-5">
+                        <label for="internalEmail" class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-envelope text-blue-500 mr-1"></i>Email Address
+                        </label>
+                        <input type="email" id="internalEmail" required 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" 
+                               placeholder="you@cryptware.com"
+                               autocomplete="email">
+                        <div id="internalEmailError" class="error-message hidden"></div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="internalPassword" class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-key text-blue-500 mr-1"></i>Password
+                        </label>
+                        <input type="password" id="internalPassword" required 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" 
+                               placeholder="••••••••"
+                               autocomplete="current-password">
+                        <div id="internalPasswordError" class="error-message hidden"></div>
+                    </div>
+                    
+                    <!-- Forgot Password Link -->
+                    <div class="mb-6 text-right">
+                        <button type="button" onclick="openForgotPassword('internal')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                            <i class="fas fa-key mr-1"></i>Forgot your password?
+                        </button>
+                    </div>
+
+                    <button type="submit" id="internalSubmitBtn"
+                            class="w-full trust-badge text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-sign-in-alt mr-2"></i>
+                        <span class="btn-text">Internal Login</span>
+                        <div class="loading-spinner hidden ml-2">
+                            <i class="fas fa-spinner"></i>
+                        </div>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full transform transition-all duration-300 scale-95 opacity-0">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-900">Reset Your Password</h3>
+                <button onclick="closeForgotPassword()" class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            
+            <p class="text-gray-600 mb-4">Enter your email address and we'll send you instructions to reset your password.</p>
+            
+            <form id="forgotPasswordForm">
+                <div class="mb-4">
+                    <label for="resetEmail" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-envelope text-blue-500 mr-1"></i>Email Address
+                    </label>
+                    <input type="email" id="resetEmail" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                           placeholder="your@company.com"
+                           autocomplete="email">
+                    <div id="resetEmailError" class="error-message hidden"></div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeForgotPassword()" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="resetSubmitBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 flex items-center disabled:opacity-50">
+                        <i class="fas fa-paper-plane mr-2"></i>
+                        <span class="btn-text">Send Reset Link</span>
+                        <div class="loading-spinner hidden ml-2">
+                            <i class="fas fa-spinner"></i>
+                        </div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active', 'text-blue-600', 'bg-blue-50');
+                btn.classList.add('text-gray-500');
+            });
+            
+            const activeTab = document.getElementById(tab + 'Tab');
+            activeTab.classList.add('active', 'text-blue-600', 'bg-blue-50');
+            activeTab.classList.remove('text-gray-500');
+
+            document.querySelectorAll('.tab-content').forEach(form => form.classList.remove('active'));
+            document.getElementById(tab + 'LoginForm').classList.add('active');
+            
+            // Clear any previous errors
+            clearErrors();
+        }
+
+        // Clear error states
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.classList.add('hidden');
+                el.textContent = '';
+            });
+            document.querySelectorAll('input').forEach(input => {
+                input.classList.remove('input-error');
+            });
+        }
+
+        // Show error for specific field
+        function showError(fieldId, message) {
+            const input = document.getElementById(fieldId);
+            const errorDiv = document.getElementById(fieldId + 'Error');
+            
+            if (input && errorDiv) {
+                input.classList.add('input-error');
+                errorDiv.textContent = message;
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        // Show loading state for button
+        function setLoading(button, isLoading) {
+            const btnText = button.querySelector('.btn-text');
+            const spinner = button.querySelector('.loading-spinner');
+            
+            if (isLoading) {
+                button.disabled = true;
+                btnText.textContent = button.id.includes('partner') ? 'Signing in...' : 'Signing in...';
+                spinner.classList.remove('hidden');
+            } else {
+                button.disabled = false;
+                btnText.textContent = button.id.includes('partner') ? 'Partner Login' : 'Internal Login';
+                spinner.classList.add('hidden');
+            }
+        }
+
+        // Event listeners for tabs
+        document.getElementById('partnerTab').addEventListener('click', () => switchTab('partner'));
+        document.getElementById('internalTab').addEventListener('click', () => switchTab('internal'));
+
+        // Partner login form
+        document.getElementById('partnerLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearErrors();
+            
+            const email = document.getElementById('partnerEmail').value.trim();
+            const password = document.getElementById('partnerPassword').value;
+            const submitBtn = document.getElementById('partnerSubmitBtn');
+
+            // Basic validation
+            if (!email) {
+                showError('partnerEmail', 'Email is required');
+                return;
+            }
+            
+            if (!password) {
+                showError('partnerPassword', 'Password is required');
+                return;
+            }
+
+            if (!AuthManager.isValidEmail(email)) {
+                showError('partnerEmail', 'Please enter a valid email address');
+                return;
+            }
+
+            setLoading(submitBtn, true);
+
+            try {
+                const result = await AuthManager.partnerLogin(email, password);
+                
+                if (!result.success) {
+                    // Error is already shown by AuthManager
+                    console.log('Partner login failed');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                Toast.error('An unexpected error occurred. Please try again.');
+            } finally {
+                setLoading(submitBtn, false);
+            }
+        });
+
+        // Internal login form
+        document.getElementById('internalLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearErrors();
+            
+            const email = document.getElementById('internalEmail').value.trim();
+            const password = document.getElementById('internalPassword').value;
+            const submitBtn = document.getElementById('internalSubmitBtn');
+
+            // Basic validation
+            if (!email) {
+                showError('internalEmail', 'Email is required');
+                return;
+            }
+            
+            if (!password) {
+                showError('internalPassword', 'Password is required');
+                return;
+            }
+
+            if (!AuthManager.isValidEmail(email)) {
+                showError('internalEmail', 'Please enter a valid email address');
+                return;
+            }
+
+            setLoading(submitBtn, true);
+
+            try {
+                const result = await AuthManager.internalLogin(email, password);
+                
+                if (!result.success) {
+                    // Error is already shown by AuthManager
+                    console.log('Internal login failed');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                Toast.error('An unexpected error occurred. Please try again.');
+            } finally {
+                setLoading(submitBtn, false);
+            }
+        });
+
+        // Forgot password functions
+        window.openForgotPassword = function(userType) {
+            const modal = document.getElementById('forgotPasswordModal');
+            const form = modal.querySelector('.bg-white');
+            
+            // Pre-fill email from current form
+            const activeForm = document.querySelector('.tab-content.active');
+            const emailInput = activeForm.querySelector('input[type="email"]');
+            if (emailInput && emailInput.value) {
+                document.getElementById('resetEmail').value = emailInput.value;
+            }
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                form.classList.remove('scale-95', 'opacity-0');
+                form.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        };
+
+        window.closeForgotPassword = function() {
+            const modal = document.getElementById('forgotPasswordModal');
+            const form = modal.querySelector('.bg-white');
+            
+            form.classList.remove('scale-100', 'opacity-100');
+            form.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('forgotPasswordForm').reset();
+                document.getElementById('resetEmailError').classList.add('hidden');
+            }, 300);
+        };
+
+        // Forgot password form submission
+        document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearErrors();
+            
+            const email = document.getElementById('resetEmail').value.trim();
+            const submitBtn = document.getElementById('resetSubmitBtn');
+            
+            if (!email) {
+                showError('resetEmail', 'Email is required');
+                return;
+            }
+
+            if (!AuthManager.isValidEmail(email)) {
+                showError('resetEmail', 'Please enter a valid email address');
+                return;
+            }
+
+            setLoading(submitBtn, true);
+
+            try {
+                const result = await AuthManager.forgotPassword(email);
+                
+                if (result.success) {
+                    window.closeForgotPassword();
+                }
+            } catch (error) {
+                console.error('Forgot password error:', error);
+            } finally {
+                setLoading(submitBtn, false);
+            }
+        });
+
+        // Check if already logged in
+        document.addEventListener('DOMContentLoaded', async () => {
+            const currentUser = AuthManager.getCurrentUser();
+            
+            if (currentUser) {
+                if (currentUser.type === 'partner') {
+                    window.location.href = 'partner-dashboard.html';
+                } else if (currentUser.type === 'internal') {
+                    window.location.href = 'internal-dashboard.html';
+                }
+            }
+            
+            // Add demo credentials helper in development
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                document.getElementById('demoHelper').classList.remove('hidden');
+            }
+
+            // Check for redirect parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirect = urlParams.get('redirect');
+            const verified = urlParams.get('verified');
+            
+            if (verified) {
+                Toast.success('🎉 Email verified successfully! You can now login.');
+            }
+            
+            if (redirect) {
+                console.log('Redirect requested to:', redirect);
+            }
+        });
+
+        // Close modal on outside click
+        document.getElementById('forgotPasswordModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeForgotPassword();
+            }
+        });
+
+        // Enter key support for forms
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const activeForm = document.querySelector('.tab-content.active');
+                if (activeForm) {
+                    const submitBtn = activeForm.querySelector('button[type="submit"]');
+                    if (submitBtn && !submitBtn.disabled) {
+                        submitBtn.click();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

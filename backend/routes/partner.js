@@ -1,0 +1,393 @@
+import express from 'express';
+import { supabase } from '../config/supabase.js';
+import { authenticatePartner } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// @route   GET /api/partner/dashboard
+// @desc    Partner main dashboard (stats, recent referrals, earnings)
+// @access  Private (Partner)
+router.get('/dashboard', authenticatePartner, async (req, res) => {
+  try {
+    const partnerId = req.partner.id;
+
+    console.log(`📊 Fetching partner dashboard: ${partnerId}`);
+
+    // Get comprehensive dashboard data
+    const [
+      referralsResponse,
+      payoutsResponse,
+      recentActivityResponse
+    ] = await Promise.all([
+      // Referrals statistics
+      supabase
+        .from('referrals')
+        .select('status, total_commission_earned, total_deal_value, created_at')
+        .eq('partner_id', partnerId),
+
+      // Payouts summary
+      supabase
+        .from('partner_payouts')
+        .select('amount, status, requested_at')
+        .eq('partner_id', partnerId),
+
+      // Recent referrals
+      supabase
+        .from('referrals')
+        .select(`
+          id,
+          prospect_company_name,
+          referral_code,
+          status,
+          total_commission_earned,
+          created_at,
+          leads!referral_id (status as lead_status)
+        `)
+        .eq('partner_id', partnerId)
+        .order('created_at', { ascending: false })
+        .limit(5)
+    ]);
+
+    if (referralsResponse.error) {
+      console.error('❌ Dashboard data error:', referralsResponse.error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch dashboard data'
+      });
+    }
+
+    const referrals = referralsResponse.data || [];
+    const payouts = payoutsResponse.data || [];
+    const recentReferrals = recentActivityResponse.data || [];
+
+    // Calculate comprehensive statistics
+    const totalReferrals = referrals.length;
+    const activeReferrals = referrals.filter(r => 
+      !['won', 'fully_paid', 'lost'].includes(r.status)
+    ).length;
+
+    const totalCommissionEarned = referrals.reduce((sum, r) => 
+      sum + (r.total_commission_earned || 0), 0
+    );
+
+    const totalDealValue = referrals.reduce((sum, r) => 
+      sum + (r.total_deal_value || 0), 0
+    );
+
+    // Calculate available for payout (fully_paid referrals)
+    const eligibleReferrals = referrals.filter(r => 
+      r.status === 'fully_paid' && r.total_commission_earned > 0
+    );
+    const availableForPayout = eligibleReferrals.reduce((sum, r) => 
+      sum + (r.total_commission_earned || 0), 0
+    );
+
+    // Payout statistics
+    const totalPaidOut = payouts
+      .filter(p => p.status === 'paid')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const pendingPayouts = payouts
+      .filter(p => p.status === 'pending' || p.status === 'processing')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // Monthly commission trend (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const { data: monthlyCommissions } = await supabase
+      .from('referrals')
+      .select('total_commission_earned, created_at')
+      .eq('partner_id', partnerId)
+      .gte('created_at', sixMonthsAgo.toISOString());
+
+    const monthlyTrend = calculateMonthlyTrend(monthlyCommissions || []);
+
+    res.json({
+      success: true,
+      data: {
+        overview: {
+          total_referrals,
+          active_referrals,
+          total_commission_earned,
+          total_deal_value,
+          available_for_payout,
+          total_paid_out: totalPaidOut,
+          pending_payouts: pendingPayouts
+        },
+        referrals_breakdown: {
+          code_sent: referrals.filter(r => r.status === 'code_sent').length,
+          contacted: referrals.filter(r => r.status === 'contacted').length,
+          meeting_scheduled: referrals.filter(r => r.status === 'meeting_scheduled').length,
+          proposal_sent: referrals.filter(r => r.status === 'proposal_sent').length,
+          negotiation: referrals.filter(r => r.status === 'negotiation').length,
+          won: referrals.filter(r => r.status === 'won').length,
+          fully_paid: referrals.filter(r => r.status === 'fully_paid').length,
+          lost: referrals.filter(r => r.status === 'lost').length
+        },
+        recent_referrals,
+        monthly_trend: monthlyTrend,
+        quick_actions: {
+          can_create_referral: true,
+          can_request_payout: availableForPayout > 0,
+          has_pending_verification: !req.partner.bank_verified
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Partner dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while loading dashboard'
+    });
+  }
+});
+
+// @route   GET /api/partner/profile
+// @desc    Get partner profile with bank details
+// @access  Private (Partner)
+router.get('/profile', authenticatePartner, async (req, res) => {
+  try {
+    const partnerId = req.partner.id;
+
+    console.log(`👤 Fetching partner profile: ${partnerId}`);
+
+    const { data: partner, error } = await supabase
+      .from('partners')
+      .select('*')
+      .eq('id', partnerId)
+      .single();
+
+    if (error || !partner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Partner profile not found'
+      });
+    }
+
+    // Remove sensitive data
+    const { password_hash, ...safePartnerData } = partner;
+
+    res.json({
+      success: true,
+      data: {
+        partner: safePartnerData
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Fetch profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching profile'
+    });
+  }
+});
+
+// @route   PUT /api/partner/profile
+// @desc    Update partner contact information
+// @access  Private (Partner)
+router.put('/profile', authenticatePartner, async (req, res) => {
+  try {
+    const partnerId = req.partner.id;
+    const {
+      contact_name,
+      phone,
+      address
+    } = req.body;
+
+    console.log(`✏️ Updating partner profile: ${partnerId}`);
+
+    // Validation
+    if (!contact_name || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Contact name and phone are required'
+      });
+    }
+
+    const { data: partner, error } = await supabase
+      .from('partners')
+      .update({
+        contact_name,
+        phone,
+        address,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', partnerId)
+      .select()
+      .single();
+
+    if (error || !partner) {
+      console.error('❌ Profile update error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update profile: ' + error?.message
+      });
+    }
+
+    // Remove sensitive data
+    const { password_hash, ...safePartnerData } = partner;
+
+    // Audit log
+    await supabase
+      .from('audit_logs')
+      .insert({
+        user_id: partnerId,
+        user_type: 'partner',
+        action: 'update',
+        resource_type: 'partners',
+        resource_id: partnerId,
+        new_values: safePartnerData
+      });
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        partner: safePartnerData
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while updating profile'
+    });
+  }
+});
+
+// @route   GET /api/partner/commissions
+// @desc    Commission overview and pending earnings
+// @access  Private (Partner)
+router.get('/commissions', authenticatePartner, async (req, res) => {
+  try {
+    const partnerId = req.partner.id;
+
+    console.log(`💰 Fetching commission data for partner: ${partnerId}`);
+
+    const [
+      referralsResponse,
+      payoutsResponse,
+      paymentsResponse
+    ] = await Promise.all([
+      // Referrals with commissions
+      supabase
+        .from('referrals')
+        .select(`
+          id,
+          prospect_company_name,
+          referral_code,
+          status,
+          total_commission_earned,
+          total_deal_value,
+          commission_eligible,
+          created_at
+        `)
+        .eq('partner_id', partnerId)
+        .order('created_at', { ascending: false }),
+
+      // Payout history
+      supabase
+        .from('partner_payouts')
+        .select('*')
+        .eq('partner_id', partnerId)
+        .order('requested_at', { ascending: false }),
+
+      // Payment details
+      supabase
+        .from('client_payments')
+        .select(`
+          amount,
+          commission_calculated,
+          payment_date,
+          status,
+          referrals!inner(partner_id, prospect_company_name)
+        `)
+        .eq('referrals.partner_id', partnerId)
+        .eq('status', 'confirmed')
+        .order('payment_date', { ascending: false })
+    ]);
+
+    if (referralsResponse.error) {
+      console.error('❌ Commission data error:', referralsResponse.error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch commission data'
+      });
+    }
+
+    const referrals = referralsResponse.data || [];
+    const payouts = payoutsResponse.data || [];
+    const payments = paymentsResponse.data || [];
+
+    // Calculate commission summary
+    const totalCommissionEarned = referrals.reduce((sum, r) => 
+      sum + (r.total_commission_earned || 0), 0
+    );
+
+    const availableForPayout = referrals
+      .filter(r => r.commission_eligible && r.total_commission_earned > 0)
+      .reduce((sum, r) => sum + (r.total_commission_earned || 0), 0);
+
+    const totalPaidOut = payouts
+      .filter(p => p.status === 'paid')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const pendingPayouts = payouts
+      .filter(p => p.status === 'pending' || p.status === 'processing')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          total_commission_earned,
+          available_for_payout: availableForPayout,
+          total_paid_out: totalPaidOut,
+          pending_payouts: pendingPayouts
+        },
+        referrals: referrals.map(r => ({
+          ...r,
+          payout_eligible: r.commission_eligible && r.total_commission_earned > 0
+        })),
+        payouts,
+        recent_payments: payments.slice(0, 10), // Last 10 payments
+        commission_rate: 0.05 // 5% fixed rate
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Commission data error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching commission data'
+    });
+  }
+});
+
+// Helper function to calculate monthly trend
+function calculateMonthlyTrend(commissions) {
+  const monthlyData = {};
+  
+  commissions.forEach(commission => {
+    const date = new Date(commission.created_at);
+    const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!monthlyData[monthYear]) {
+      monthlyData[monthYear] = 0;
+    }
+    
+    monthlyData[monthYear] += commission.total_commission_earned || 0;
+  });
+
+  // Convert to array and sort by date
+  return Object.entries(monthlyData)
+    .map(([month, amount]) => ({ month, amount }))
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .slice(-6); // Last 6 months
+}
+
+export default router;

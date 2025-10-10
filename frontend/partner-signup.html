@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Become a Partner | Cryptware</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="./js/supabase-client.js"></script>
+    <script type="module" src="./js/utils/toast.js"></script>
+    <script type="module" src="./js/partner-signup.js"></script>
+    <!-- Add this in the head section of partner-signup.html -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.2/dist/axios.min.js"></script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .trust-badge {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-step {
+            transition: all 0.3s ease;
+        }
+        
+        .progress-step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .progress-step.active {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            color: white;
+        }
+        
+        .progress-step.completed {
+            background: linear-gradient(135deg, #065f46 0%, #10b981 100%);
+            color: white;
+        }
+        
+        .progress-step.pending {
+            background: #d1d5db;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="font-['Inter'] bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white border-b shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="index.html" class="flex items-center space-x-3">
+                    <div class="trust-badge">
+                        <i class="fas fa-handshake"></i>
+                        <span>Partnership</span>
+                    </div>
+                    <span class="text-xl font-bold text-gray-900">Cryptware</span>
+                </a>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600">Already a partner?</span>
+                    <a href="login.html" class="bg-white border border-blue-600 text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition flex items-center gap-2">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Sign In
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Progress Tracker -->
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        <div class="flex items-center justify-center gap-2">
+            <div class="progress-step active">1</div>
+            <div class="w-12 h-1 bg-blue-200 rounded"></div>
+            <div class="progress-step pending">2</div>
+            <div class="w-12 h-1 bg-blue-200 rounded"></div>
+            <div class="progress-step pending">3</div>
+            <div class="w-12 h-1 bg-blue-200 rounded"></div>
+            <div class="progress-step pending">4</div>
+        </div>
+    </div>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+            <div class="trust-badge inline-flex mb-4">
+                <i class="fas fa-rocket"></i>
+                <span>Start Earning 5% Commission</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                Join Our Exclusive<br>
+                <span class="text-blue-600">Partner Network</span>
+            </h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                Transform your professional network into a revenue stream. 
+                Every referral you bring earns you 5% commission with complete transparency.
+            </p>
+        </div>
+
+        <!-- Multi-step Form -->
+        <div class="glass-card rounded-2xl p-6 md:p-8 mb-8">
+            <form id="partnerSignupForm" class="space-y-8">
+                <!-- Step 1: Company Information -->
+                <div class="form-step active" id="step1">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-building text-blue-600 text-2xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Company Information</h2>
+                        <p class="text-gray-600">Let's start with your business details</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label for="companyName" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-building text-blue-500 mr-2"></i>
+                                Legal Company Name *
+                            </label>
+                            <input type="text" id="companyName" required 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                   placeholder="Enter your registered company name">
+                        </div>
+
+                        <div>
+                            <label for="cacNumber" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-file-contract text-blue-500 mr-2"></i>
+                                CAC Registration Number *
+                            </label>
+                            <input type="text" id="cacNumber" required 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                   placeholder="e.g., RC1234567">
+                        </div>
+
+                        <div>
+                            <label for="tinNumber" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-receipt text-blue-500 mr-2"></i>
+                                Tax Identification Number
+                            </label>
+                            <input type="text" id="tinNumber" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                   placeholder="Your TIN number">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end mt-8">
+                        <button type="button" onclick="PartnerSignup.nextStep(2)" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2">
+                            Continue to Contact Details
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Contact Details -->
+                <div class="form-step hidden" id="step2">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-user-tie text-green-600 text-2xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Contact Person</h2>
+                        <p class="text-gray-600">Primary contact information</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label for="contactName" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-user text-green-500 mr-2"></i>
+                                Full Name *
+                            </label>
+                            <input type="text" id="contactName" required 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                   placeholder="Enter your full name">
+                        </div>
+
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-envelope text-green-500 mr-2"></i>
+                                Email Address *
+                            </label>
+                            <input type="email" id="email" required 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                   placeholder="your@company.com">
+                        </div>
+
+                        <div>
+                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-phone text-green-500 mr-2"></i>
+                                Phone Number *
+                            </label>
+                            <input type="tel" id="phone" required 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                   placeholder="+234 800 000 0000">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label for="address" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-map-marker-alt text-green-500 mr-2"></i>
+                                Business Address
+                            </label>
+                            <textarea id="address" rows="3" 
+                                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                      placeholder="Your company's physical address"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between mt-8">
+                        <button type="button" onclick="PartnerSignup.prevStep(1)" 
+                                class="bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                            <i class="fas fa-arrow-left"></i>
+                            Back
+                        </button>
+                        <button type="button" onclick="PartnerSignup.nextStep(3)" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2">
+                            Continue to Bank Verification
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Bank Verification -->
+                <div class="form-step hidden" id="step3">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-university text-purple-600 text-2xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Bank Account Verification</h2>
+                        <p class="text-gray-600">Where we'll send your commission payments</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="bankCode" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-landmark text-purple-500 mr-2"></i>
+                                Select Your Bank *
+                            </label>
+                            <select id="bankCode" required 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                <option value="">Choose your bank...</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="accountNumber" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-credit-card text-purple-500 mr-2"></i>
+                                Account Number *
+                            </label>
+                            <input type="text" id="accountNumber" required maxlength="10"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                placeholder="10-digit account number">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <div id="bankVerificationResult" class="hidden p-4 rounded-lg border-2 border-dashed border-gray-300">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 rounded-xl p-6 mt-6 border border-blue-200">
+                        <div class="flex items-start">
+                            <i class="fas fa-shield-check text-blue-500 text-xl mt-1 mr-4"></i>
+                            <div>
+                                <h4 class="font-semibold text-blue-900 mb-2">Secure Bank Verification</h4>
+                                <p class="text-blue-800">
+                                    We use Paystack's secure API to verify your bank account in real-time. 
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between mt-8">
+                        <button type="button" onclick="prevStep(2)" 
+                                class="bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                            <i class="fas fa-arrow-left"></i>
+                            Back
+                        </button>
+                        
+                        <button type="button" onclick="verifyBankAccount()" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2" 
+                                id="verifyBankBtn">
+                            <i class="fas fa-check-circle"></i>
+                            Verify Bank Account
+                        </button>
+
+                        <button type="button" onclick="nextStep(4)" 
+                                class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2">
+                            Continue to Security
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Security & Completion -->
+                <div class="form-step hidden" id="step4">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-yellow-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-lock text-yellow-600 text-2xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Security Setup</h2>
+                        <p class="text-gray-600">Final step to secure your account</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-key text-yellow-500 mr-2"></i>
+                                Create Password *
+                            </label>
+                            <input type="password" id="password" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                placeholder="Minimum 8 characters">
+                            <p class="text-xs text-gray-500 mt-1">Must be at least 8 characters long</p>
+                        </div>
+
+                        <div>
+                            <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-redo text-yellow-500 mr-2"></i>
+                                Confirm Password *
+                            </label>
+                            <input type="password" id="confirmPassword" required 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                                placeholder="Re-enter your password">
+                            <p id="passwordMatch" class="text-xs mt-1 hidden"></p>
+                        </div>
+
+                        <div class="bg-green-50 rounded-xl p-6 border border-green-200">
+                            <div class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 text-xl mt-1 mr-4"></i>
+                                <div>
+                                    <h4 class="font-semibold text-green-900 mb-2">Ready to Start Earning!</h4>
+                                    <p class="text-green-800 mb-3">
+                                        Once you complete registration, you'll immediately gain access to:
+                                    </p>
+                                    <ul class="text-green-800 space-y-1 text-sm">
+                                        <li>• Generate unlimited referral codes</li>
+                                        <li>• Track prospects in real-time</li>
+                                        <li>• Monitor your growing commissions</li>
+                                        <li>• Request payouts for completed deals</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between mt-8">
+                        <button type="button" onclick="PartnerSignup.prevStep(3)" 
+                                class="bg-white border border-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
+                            <i class="fas fa-arrow-left"></i>
+                            Back
+                        </button>
+                        <button type="submit" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center gap-2" 
+                                id="submitBtn">
+                            <i class="fas fa-rocket"></i>
+                            Complete Registration
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Trust Indicators -->
+        <div class="text-center">
+            <div class="flex justify-center space-x-6 mb-4 flex-wrap">
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-shield-check text-green-500 mr-2"></i> Bank-Level Security
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-bolt text-blue-500 mr-2"></i> Instant Verification
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-hand-holding-usd text-yellow-500 mr-2"></i> 5% Commission
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-clock text-purple-500 mr-2"></i> 24-Hour Payouts
+                </div>
+            </div>
+            <p class="text-xs text-gray-500">Your data is protected with end-to-end encryption and never shared with third parties.</p>
+        </div>
+    </main>
+</body>
+</html>

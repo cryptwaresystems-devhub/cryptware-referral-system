@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partner Dashboard | Cryptware</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --primary-dark: #1e40af;
+            --primary-light: #dbeafe;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 4px solid transparent;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15);
+            border-left-color: var(--primary-blue);
+        }
+
+        .trust-badge {
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+        }
+
+        .progress-bar {
+            transition: width 0.8s ease-in-out;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .edit-btn {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .edit-btn:hover {
+            background: #bfdbfe;
+            transform: translateY(-1px);
+        }
+
+        .delete-btn {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .delete-btn:hover {
+            background: #fecaca;
+            transform: translateY(-1px);
+        }
+
+        .view-btn {
+            background: #f0f9ff;
+            color: #0369a1;
+        }
+
+        .view-btn:hover {
+            background: #e0f2fe;
+            transform: translateY(-1px);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-completed {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .trust-indicator {
+            display: inline-flex;
+            align-items: center;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            color: #0369a1;
+            margin: 0 4px;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .mobile-stack {
+                flex-direction: column;
+            }
+            
+            .mobile-full {
+                width: 100%;
+            }
+            
+            .mobile-text-center {
+                text-align: center;
+            }
+            
+            .mobile-p-4 {
+                padding: 1rem;
+            }
+            
+            .stat-card {
+                margin-bottom: 1rem;
+            }
+
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Animation for elements */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen font-['Inter']">
+    <!-- Enhanced Trust Header -->
+    <div class="bg-white border-b shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16 mobile-stack">
+                <div class="flex items-center space-x-4 mobile-stack mobile-text-center">
+                    <div class="trust-badge p-2 rounded-lg">
+                        <i class="fas fa-shield-alt text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">Cryptware Partner Portal</h1>
+                        <p class="text-xs text-gray-500">Enterprise-grade security & complete transparency</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 mobile-stack">
+                    <div class="text-right mobile-text-center">
+                        <p class="text-sm font-medium text-gray-700" id="partnerCompanyName"></p>
+                        <div class="flex items-center justify-center mt-1">
+                            <i class="fas fa-check-circle text-green-500 mr-1 text-xs"></i>
+                            <span class="text-xs text-green-600">Verified Partner</span>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition flex items-center">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Enhanced Welcome Section -->
+        <div class="text-center mb-12 fade-in">
+            <div class="trust-badge inline-flex items-center px-4 py-2 rounded-full mb-4">
+                <i class="fas fa-crown text-white mr-2"></i>
+                <span class="text-white text-sm font-medium">Premium Partner Tier</span>
+            </div>
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome Back!</h1>
+            <p class="text-gray-600 text-lg max-w-2xl mx-auto">Your partnership drives mutual success. Track your referrals and earnings with complete transparency.</p>
+            
+            <!-- Trust Indicators -->
+            <div class="flex justify-center mt-6 space-x-3 flex-wrap">
+                <span class="trust-indicator">
+                    <i class="fas fa-lock mr-1"></i> Bank-Level Encryption
+                </span>
+                <span class="trust-indicator">
+                    <i class="fas fa-bolt mr-1"></i> Real-Time Updates
+                </span>
+                <span class="trust-indicator">
+                    <i class="fas fa-chart-line mr-1"></i> Transparent Tracking
+                </span>
+            </div>
+        </div>
+
+        <!-- Enhanced Progress Tracker -->
+        <div class="glass-card rounded-2xl p-6 mb-8 fade-in">
+            <div class="flex items-center justify-between mb-6 mobile-stack">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-trophy text-yellow-500 mr-3"></i>Your Progress Tracker
+                </h2>
+                <div class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-sm flex items-center">
+                    <i class="fas fa-bullseye mr-1"></i>
+                    <span class="progress-text">0/10 to next tier</span>
+                </div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                <div class="progress-bar bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-1000" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-sm text-gray-600">
+                <span>Bronze</span>
+                <span>Silver</span>
+                <span>Gold</span>
+                <span>Platinum</span>
+            </div>
+            <p class="text-sm text-gray-600 mt-4">
+                <i class="fas fa-info-circle text-blue-500 mr-1"></i>
+                Reach 10 successful referrals to unlock premium benefits including higher commission rates and priority support.
+            </p>
+        </div>
+
+        <!-- Enhanced Real-time Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="stat-card glass-card rounded-2xl p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" id="totalReferrals">0</h3>
+                        <p class="text-gray-600">Active Referrals</p>
+                    </div>
+                    <div class="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-chart-bar text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4 text-green-600 text-sm">
+                    <i class="fas fa-arrow-up mr-1"></i>
+                    <span>25% increase this month</span>
+                </div>
+            </div>
+
+            <div class="stat-card glass-card rounded-2xl p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" id="signedUpCount">0</h3>
+                        <p class="text-gray-600">Successful Sign-ups</p>
+                    </div>
+                    <div class="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user-check text-green-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4 text-green-600 text-sm">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    <span>92% conversion rate</span>
+                </div>
+            </div>
+
+            <div class="stat-card glass-card rounded-2xl p-6 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2" id="totalCommission">₦0</h3>
+                        <p class="text-gray-600">Total Earnings</p>
+                    </div>
+                    <div class="bg-purple-100 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-money-bill-wave text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4 text-green-600 text-sm">
+                    <i class="fas fa-clock mr-1"></i>
+                    <span>Paid within 24 hours</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payout Summary Section -->
+<div class="glass-card rounded-2xl p-6 mb-8 fade-in">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i class="fas fa-wallet text-green-500 mr-2"></i>Payout Summary
+        </h3>
+        <div class="flex space-x-2">
+            <button onclick="partnerDashboard.downloadCommissionCSV()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center">
+                <i class="fas fa-download mr-2"></i>Export CSV
+            </button>
+            <button onclick="partnerDashboard.requestPayout()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm flex items-center">
+                <i class="fas fa-money-bill-wave mr-2"></i>Request Payout
+            </button>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+            <div class="text-2xl font-bold text-green-600" id="availablePayout">₦0</div>
+            <p class="text-sm text-gray-600">Available for Payout</p>
+        </div>
+        <div class="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="text-2xl font-bold text-blue-600" id="totalEarned">₦0</div>
+            <p class="text-sm text-gray-600">Total Earned</p>
+        </div>
+        <div class="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div class="text-2xl font-bold text-purple-600" id="paidOut">₦0</div>
+            <p class="text-sm text-gray-600">Already Paid Out</p>
+        </div>
+        <div class="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div class="text-2xl font-bold text-yellow-600" id="pendingPayouts">0</div>
+            <p class="text-sm text-gray-600">Successful Deals</p>
+        </div>
+    </div>
+    
+    <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
+        <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+            <div>
+                <p class="text-sm text-gray-700 font-medium">Payout Information</p>
+                <p class="text-sm text-gray-600 mt-1">
+                    Funds are available for withdrawal immediately after each payment is recorded. 
+                    Payouts are processed within 24 hours of request. Export your commission report for complete transparency.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- Enhanced Commission Transparency Section -->
+        <div class="glass-card rounded-2xl p-6 mb-8 fade-in">
+            <div class="flex items-center justify-between mb-6 mobile-stack">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-percentage text-blue-500 mr-2"></i>Commission Structure
+                </h3>
+                <div class="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm flex items-center">
+                    <i class="fas fa-handshake mr-1"></i>5% Flat Rate
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <div class="flex items-center mb-3">
+                        <div class="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-money-bill text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Commission Rate</h4>
+                            <p class="text-2xl font-bold text-blue-600">5%</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600">of every successful deal value</p>
+                </div>
+                
+                <div class="bg-green-50 rounded-lg p-4">
+                    <div class="flex items-center mb-3">
+                        <div class="bg-green-100 w-10 h-10 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-clock text-green-600"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Payment Timing</h4>
+                            <p class="text-xl font-bold text-green-600">Within 24 Hours</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600">after client payment confirmation</p>
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                    <div>
+                        <p class="text-sm text-gray-700 font-medium">Transparency Notice</p>
+                        <p class="text-sm text-gray-600 mt-1">
+                            You earn 5% of the total deal value. For example, a ₦100,000 deal = ₦5,000 commission. 
+                            This calculation is visible to both you and our team for complete trust and accountability.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced CTA Section -->
+        <div class="text-center mb-8 fade-in">
+            <div class="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-4 mb-6 max-w-md mx-auto">
+                <div class="flex items-center justify-center">
+                    <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+                    <p class="text-yellow-800 text-sm font-medium">Limited time: Earn 15% bonus on all referrals this month</p>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <a href="generate-referral.html" class="trust-badge inline-flex items-center px-6 py-3 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition transform hover:scale-105">
+                    <i class="fas fa-plus-circle mr-2"></i>Create New Referral
+                </a>
+                <a href="commission-report.html" class="bg-white border border-blue-200 text-blue-600 inline-flex items-center px-6 py-3 font-semibold rounded-lg shadow-md hover:shadow-lg transition">
+                    <i class="fas fa-chart-pie mr-2"></i>View Commission Report
+                </a>
+            </div>
+        </div>
+
+        <!-- Enhanced Referral Activity Table -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-lg fade-in">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                <div class="flex justify-between items-center mobile-stack">
+                    <div>
+                        <h2 class="text-xl font-semibold text-white flex items-center">
+                            <i class="fas fa-history mr-2"></i>Referral Activity
+                        </h2>
+                        <p class="text-blue-100 text-sm">Real-time tracking with complete transparency</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Live</span>
+                        <i class="fas fa-sync-alt text-blue-200 cursor-pointer" id="refreshTable" title="Refresh data"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto table-responsive">
+                <table class="w-full">
+                    <thead class="bg-blue-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Company Details</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Referral Code</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Earnings</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Timeline</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100" id="referralsTableBody">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Empty State -->
+            <div id="emptyState" class="px-6 py-12 text-center hidden">
+                <div class="text-blue-200 text-5xl mb-4">
+                    <i class="fas fa-inbox"></i>
+                </div>
+                <h3 class="text-gray-600 text-lg mb-2">No referrals yet</h3>
+                <p class="text-gray-500 text-sm mb-4">Start by creating your first referral to track progress and earnings</p>
+                <a href="generate-referral.html" class="trust-badge inline-flex items-center px-4 py-2 text-white text-sm font-semibold rounded-lg">
+                    <i class="fas fa-plus mr-2"></i>Create First Referral
+                </a>
+            </div>
+        </div>
+
+        <!-- Enhanced Trust Footer -->
+        <div class="text-center mt-12 pt-8 border-t border-gray-200">
+            <div class="flex justify-center space-x-6 mb-4 flex-wrap">
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-shield-check text-green-500 mr-2"></i> SSL Encrypted
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-bolt text-blue-500 mr-2"></i> Real-time Updates
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-headset text-purple-500 mr-2"></i> Premium Support
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-file-contract text-orange-500 mr-2"></i> Transparent Reporting
+                </div>
+            </div>
+            <p class="text-xs text-gray-500">© 2024 Cryptware. All partner transactions secured with bank-level encryption and full transparency.</p>
+        </div>
+    </main>
+
+    <!-- Edit Referral Modal -->
+    <div id="editModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-900">Edit Referral</h3>
+                <button id="closeEditModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="editReferralForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                        <input type="text" id="editCompany" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                        <input type="text" id="editContact" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+                        <input type="email" id="editEmail" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                        <select id="editIndustry" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="technology">Technology</option>
+                            <option value="finance">Finance</option>
+                            <option value="healthcare">Healthcare</option>
+                            <option value="manufacturing">Manufacturing</option>
+                            <option value="retail">Retail</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" id="cancelEdit" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
+                    <button type="submit" class="trust-badge px-4 py-2 text-white font-medium rounded-lg">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/toast.js"></script>
+    <script src="js/partner-dash.js"></script>
+    <script src="js/payment-system.js"></script>
+    
+</body>
+</html>
