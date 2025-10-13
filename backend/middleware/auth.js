@@ -1,8 +1,6 @@
 import { supabase } from '../config/supabase.js';
 
-// @desc    General authentication middleware
-// @access  Private
-export const requireAuth = async (req, res, next) => {
+export const authenticateUser = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -14,8 +12,35 @@ export const requireAuth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+    
+    // Check if this is an internal user token (starts with 'internal_user_')
+    if (token.startsWith('internal_user_')) {
+      const internalUserId = token.replace('internal_user_', '');
+      
+      // Verify internal user exists and is active
+      const { data: internalUser, error } = await supabase
+        .from('internal_users')
+        .select('id, name, email, role, is_active')
+        .eq('id', internalUserId)
+        .eq('is_active', true)
+        .single();
 
-    // Verify token with Supabase
+      if (error || !internalUser) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid internal user token'
+        });
+      }
+
+      req.user = {
+        id: internalUser.id,
+        email: internalUser.email,
+        user_metadata: { user_type: 'internal' }
+      };
+      return next();
+    }
+    
+    // Otherwise, verify token with Supabase (for partners)
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
@@ -25,7 +50,6 @@ export const requireAuth = async (req, res, next) => {
       });
     }
 
-    // Attach user to request
     req.user = user;
     next();
 
@@ -38,8 +62,7 @@ export const requireAuth = async (req, res, next) => {
   }
 };
 
-// @desc    Partner-specific authentication
-// @access  Private (Partner only)
+// Add this middleware specifically for partners
 export const authenticatePartner = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -47,151 +70,85 @@ export const authenticatePartner = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        message: 'Partner authorization token required'
+        message: 'Authorization token required'
       });
     }
 
     const token = authHeader.split(' ')[1];
-
-    // Verify token with Supabase
+    
+    // Verify token with Supabase (for partners)
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired partner token'
+        message: 'Invalid or expired token'
       });
     }
 
-    // Check if user is a partner
+    // Verify this is actually a partner
     const { data: partner, error: partnerError } = await supabase
       .from('partners')
-      .select('id, company_name, email, is_active, bank_verified')
+      .select('id, company_name, email, is_active')
       .eq('id', user.id)
+      .eq('is_active', true)
       .single();
 
     if (partnerError || !partner) {
       return res.status(403).json({
         success: false,
-        message: 'Partner account not found'
+        message: 'Partner account not found or inactive'
       });
     }
 
-    if (!partner.is_active) {
-      return res.status(403).json({
-        success: false,
-        message: 'Partner account is not active. Please complete verification.'
-      });
-    }
-
-    // Attach partner to request
-    req.partner = {
-      id: partner.id,
-      company_name: partner.company_name,
-      email: partner.email,
-      bank_verified: partner.bank_verified
-    };
-
+    req.user = user;
+    req.partner = partner; // Add partner data to request
     next();
 
   } catch (error) {
     console.error('Partner auth middleware error:', error);
     res.status(500).json({
       success: false,
-      message: 'Partner authentication failed'
+      message: 'Authentication failed'
     });
   }
 };
 
-// @desc    Internal team authentication
-// @access  Private (Internal only)
+// Internal team middleware
 export const authenticateInternal = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    await authenticateUser(req, res, async () => {
+      const user = req.user;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Internal authorization token required'
-      });
-    }
+      // Check if user is internal team
+      const { data: internalUser, error } = await supabase
+        .from('internal_users')
+        .select('id, name, email, role, is_active')
+        .eq('id', user.id)
+        .single();
 
-    const token = authHeader.split(' ')[1];
+      if (error || !internalUser) {
+        return res.status(403).json({
+          success: false,
+          message: 'Internal team access required'
+        });
+      }
 
-    // Verify token with Supabase
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+      if (!internalUser.is_active) {
+        return res.status(403).json({
+          success: false,
+          message: 'Internal team account is not active'
+        });
+      }
 
-    if (error || !user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid or expired internal token'
-      });
-    }
-
-    // Check if user is internal team member
-    const { data: internalUser, error: internalError } = await supabase
-      .from('internal_users')
-      .select('id, name, email, role, is_active')
-      .eq('id', user.id)
-      .single();
-
-    if (internalError || !internalUser) {
-      return res.status(403).json({
-        success: false,
-        message: 'Internal team access required'
-      });
-    }
-
-    if (!internalUser.is_active) {
-      return res.status(403).json({
-        success: false,
-        message: 'Internal team account is not active'
-      });
-    }
-
-    // Attach internal user to request
-    req.internalUser = {
-      id: internalUser.id,
-      name: internalUser.name,
-      email: internalUser.email,
-      role: internalUser.role
-    };
-
-    next();
-
+      req.internalUser = internalUser;
+      next();
+    });
   } catch (error) {
-    console.error('Internal auth middleware error:', error);
+    console.error('Internal auth error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal team authentication failed'
     });
-  }
-};
-
-// @desc    Optional authentication (for public routes that might have auth)
-// @access  Optional
-export const optionalAuth = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      req.user = null;
-      return next();
-    }
-
-    const token = authHeader.split(' ')[1];
-
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-
-    if (!error && user) {
-      req.user = user;
-    }
-
-    next();
-
-  } catch (error) {
-    // Continue without authentication for optional routes
-    req.user = null;
-    next();
   }
 };

@@ -1,6 +1,6 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
-import { authenticatePartner } from '../middleware/auth.js';
+import { authenticateUser, authenticatePartner } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -9,12 +9,12 @@ const router = express.Router();
 // @access  Private (Partner)
 router.get('/dashboard', authenticatePartner, async (req, res) => {
   try {
-    const partnerId = req.partner.id;
+    const partnerId = req.user.id; // Changed from req.partner.id to req.user.id
 
     console.log(`📊 Fetching partner dashboard: ${partnerId}`);
 
     // Get comprehensive dashboard data
-    const [
+    const [ 
       referralsResponse,
       payoutsResponse,
       recentActivityResponse
@@ -40,8 +40,7 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
           referral_code,
           status,
           total_commission_earned,
-          created_at,
-          leads!referral_id (status as lead_status)
+          created_at
         `)
         .eq('partner_id', partnerId)
         .order('created_at', { ascending: false })
@@ -101,37 +100,44 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
       .eq('partner_id', partnerId)
       .gte('created_at', sixMonthsAgo.toISOString());
 
+    // ✅ FIXED: Remove "this." - call the standalone function directly
     const monthlyTrend = calculateMonthlyTrend(monthlyCommissions || []);
+
+    // Calculate referral breakdown
+    const referralsBreakdown = {
+      code_sent: referrals.filter(r => r.status === 'code_sent').length,
+      contacted: referrals.filter(r => r.status === 'contacted').length,
+      meeting_scheduled: referrals.filter(r => r.status === 'meeting_scheduled').length,
+      proposal_sent: referrals.filter(r => r.status === 'proposal_sent').length,
+      negotiation: referrals.filter(r => r.status === 'negotiation').length,
+      won: referrals.filter(r => r.status === 'won').length,
+      fully_paid: referrals.filter(r => r.status === 'fully_paid').length,
+      lost: referrals.filter(r => r.status === 'lost').length
+    };
+
+    // Check quick actions
+    const quickActions = {
+      can_create_referral: true,
+      can_request_payout: availableForPayout > 0,
+      has_pending_verification: false
+    };
 
     res.json({
       success: true,
       data: {
         overview: {
-          total_referrals,
-          active_referrals,
-          total_commission_earned,
-          total_deal_value,
-          available_for_payout,
+          total_referrals: totalReferrals,
+          active_referrals: activeReferrals,
+          total_commission_earned: totalCommissionEarned,
+          total_deal_value: totalDealValue,
+          available_for_payout: availableForPayout,
           total_paid_out: totalPaidOut,
           pending_payouts: pendingPayouts
         },
-        referrals_breakdown: {
-          code_sent: referrals.filter(r => r.status === 'code_sent').length,
-          contacted: referrals.filter(r => r.status === 'contacted').length,
-          meeting_scheduled: referrals.filter(r => r.status === 'meeting_scheduled').length,
-          proposal_sent: referrals.filter(r => r.status === 'proposal_sent').length,
-          negotiation: referrals.filter(r => r.status === 'negotiation').length,
-          won: referrals.filter(r => r.status === 'won').length,
-          fully_paid: referrals.filter(r => r.status === 'fully_paid').length,
-          lost: referrals.filter(r => r.status === 'lost').length
-        },
-        recent_referrals,
+        referrals_breakdown: referralsBreakdown,
+        recent_referrals: recentReferrals,
         monthly_trend: monthlyTrend,
-        quick_actions: {
-          can_create_referral: true,
-          can_request_payout: availableForPayout > 0,
-          has_pending_verification: !req.partner.bank_verified
-        }
+        quick_actions: quickActions
       }
     });
 
@@ -147,7 +153,7 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
 // @route   GET /api/partner/profile
 // @desc    Get partner profile with bank details
 // @access  Private (Partner)
-router.get('/profile', authenticatePartner, async (req, res) => {
+router.get('/profile', authenticateUser, async (req, res) => {
   try {
     const partnerId = req.partner.id;
 
@@ -188,7 +194,7 @@ router.get('/profile', authenticatePartner, async (req, res) => {
 // @route   PUT /api/partner/profile
 // @desc    Update partner contact information
 // @access  Private (Partner)
-router.put('/profile', authenticatePartner, async (req, res) => {
+router.put('/profile', authenticateUser, async (req, res) => {
   try {
     const partnerId = req.partner.id;
     const {
@@ -262,7 +268,7 @@ router.put('/profile', authenticatePartner, async (req, res) => {
 // @route   GET /api/partner/commissions
 // @desc    Commission overview and pending earnings
 // @access  Private (Partner)
-router.get('/commissions', authenticatePartner, async (req, res) => {
+router.get('/commissions', authenticateUser, async (req, res) => {
   try {
     const partnerId = req.partner.id;
 
@@ -354,8 +360,8 @@ router.get('/commissions', authenticatePartner, async (req, res) => {
           payout_eligible: r.commission_eligible && r.total_commission_earned > 0
         })),
         payouts,
-        recent_payments: payments.slice(0, 10), // Last 10 payments
-        commission_rate: 0.05 // 5% fixed rate
+        recent_payments: payments.slice(0, 10),
+        commission_rate: 0.05
       }
     });
 
@@ -368,7 +374,7 @@ router.get('/commissions', authenticatePartner, async (req, res) => {
   }
 });
 
-// Helper function to calculate monthly trend
+// ✅ FIXED: This is a standalone function, not a method
 function calculateMonthlyTrend(commissions) {
   const monthlyData = {};
   

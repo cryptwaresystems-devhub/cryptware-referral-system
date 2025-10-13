@@ -1,19 +1,18 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
-import bcrypt from 'bcryptjs';
 import emailService from '../services/email-service.js';
-import jwt from 'jsonwebtoken';
-import { verifyPartnerToken } from '../middleware/verifyPartnerToken.js';
+import { authenticateUser} from '../middleware/auth.js';
+import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
-// Generate random 6-digit OTP
+// Generate OTP
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 // @route   POST /api/auth/register
-// @desc    Register new partner with password
+// @desc    Register new partner with Supabase Auth
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
@@ -41,7 +40,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Password validation
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
@@ -50,7 +48,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if email already exists
-    const { data: existingPartner, error: checkError } = await supabase
+    const { data: existingPartner } = await supabase
       .from('partners')
       .select('id')
       .eq('email', email)
@@ -63,13 +61,8 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Hash password
-    const saltRounds = 12;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Create partner in Supabase Auth
+    // Create user in Supabase Auth
     console.log('Creating auth user...');
-    // In auth.js register route, update the signUp call:
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -77,9 +70,7 @@ router.post('/register', async (req, res) => {
         data: {
           user_type: 'partner',
           company_name: companyName
-        },
-        // Add this to disable Supabase confirmation emails
-        emailRedirectTo: `${process.env.FRONTEND_URL}/login.html?verified=true`
+        }
       }
     });
 
@@ -93,7 +84,7 @@ router.post('/register', async (req, res) => {
 
     console.log('✅ Auth user created:', authData.user.id);
 
-    // Prepare partner data
+    // Create partner profile
     const partnerData = {
       id: authData.user.id,
       company_name: companyName,
@@ -103,7 +94,6 @@ router.post('/register', async (req, res) => {
       email: email,
       phone: phone,
       address: address,
-      password_hash: passwordHash, // Store hashed password
       is_active: false
     };
 
@@ -115,8 +105,7 @@ router.post('/register', async (req, res) => {
       partnerData.bank_verified = true;
     }
 
-    // Create partner profile
-    const { data: partnerDataResult, error: partnerError } = await supabase
+    const { data: partner, error: partnerError } = await supabase
       .from('partners')
       .insert(partnerData)
       .select()
@@ -125,7 +114,7 @@ router.post('/register', async (req, res) => {
     if (partnerError) {
       console.error('❌ Partner creation error:', partnerError);
       
-      // Try to clean up auth user
+      // Cleanup auth user
       try {
         await supabase.auth.admin.deleteUser(authData.user.id);
       } catch (deleteError) {
@@ -138,45 +127,33 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    console.log('✅ Partner profile created:', partnerDataResult.id);
-
-    // Generate OTP
+    // Generate and send OTP
     const otpCode = generateOTP();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-    // Store OTP
-    const { error: otpError } = await supabase
+    await supabase
       .from('partner_otps')
       .insert({
-        partner_id: partnerDataResult.id,
+        partner_id: partner.id,
         email: email,
         otp_code: otpCode,
         expires_at: expiresAt.toISOString()
       });
 
-    if (otpError) {
-      console.error('❌ OTP storage error:', otpError);
-      return res.status(500).json({
-        success: false,
-        message: 'Registration completed but OTP setup failed'
-      });
-    }
-
     // Send OTP email
-    console.log('Sending OTP email...');
-    const emailSent = await emailService.sendOTPEmail(email, otpCode);
+    await emailService.sendOTPEmail(email, otpCode);
 
     const responseData = {
       success: true,
       message: 'Partner registered successfully. Please verify your email with OTP.',
       data: {
-        partnerId: partnerDataResult.id,
-        email: partnerDataResult.email,
+        partnerId: partner.id,
+        email: partner.email,
         hasBankDetails: !!(bankAccountNumber && bankCode && verifiedAccountName)
       }
     };
 
-    // Include OTP in development for testing
+    // Include OTP in development
     if (process.env.NODE_ENV === 'development') {
       responseData.data.otpCode = otpCode;
       console.log(`🔑 DEV OTP for ${email}: ${otpCode}`);
@@ -193,14 +170,14 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Add these routes to your existing auth.js
-
-// @route   POST /api/auth/internal-login
-// @desc    Internal user login (separate from partner login)
+// @route   POST /api/auth/login
+// @desc    Universal login for both partners and internal users
 // @access  Public
-router.post('/internal-login', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    console.log('🔐 Login attempt for:', email);
 
     if (!email || !password) {
       return res.status(400).json({
@@ -209,69 +186,109 @@ router.post('/internal-login', async (req, res) => {
       });
     }
 
-    console.log('🔐 Internal login attempt for:', email);
+    const normalizedEmail = email.toLowerCase().trim();
 
-    // Find internal user
-    const { data: internalUser, error: userError } = await supabase
+    // 1. Check internal users first
+    const { data: internalUser, error: internalError } = await supabase
       .from('internal_users')
       .select('*')
-      .eq('email', email.toLowerCase().trim())
-      .eq('is_active', true)
+      .eq('email', normalizedEmail)
       .single();
 
-    if (userError || !internalUser) {
-      console.log('❌ Internal user not found:', email);
+    if (internalUser) {
+      if (!internalUser.is_active) {
+        return res.status(403).json({
+          success: false,
+          message: 'Account is inactive'
+        });
+      }
+
+      // ✅ PLAIN PASSWORD COMPARISON FOR INTERNAL USERS
+      console.log('🔑 Comparing plain passwords...');
+      console.log('Input password:', password);
+      console.log('Stored password:', internalUser.password);
+      
+      // Compare plain text passwords
+      if (password === internalUser.password) {
+        console.log(`✅ Internal login successful: ${email}`);
+        
+        // Remove sensitive data
+        const { password, password_hash, ...safeUserData } = internalUser;
+
+        const mockSession = {
+          access_token: 'internal_user_' + internalUser.id,
+          token_type: 'bearer',
+          expires_in: 604800,
+        };
+
+        return res.json({
+          success: true,
+          message: 'Login successful',
+          data: {
+            user: safeUserData,
+            userType: 'internal',
+            session: mockSession
+          }
+        });
+      } else {
+        console.log('❌ Invalid password for internal user');
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+    }
+
+    // 2. Try Supabase Auth for partners
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password
+    });
+
+    if (authError) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
 
-    // Check if password_hash exists and verify it
-    if (internalUser.password_hash) {
-      // Compare hashed password
-      const isValidPassword = await bcrypt.compare(password, internalUser.password_hash);
-      if (!isValidPassword) {
-        console.log('❌ Invalid password for:', email);
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials'
-        });
-      }
-    } else {
-      // Fallback for existing users without password_hash
-      // Remove this after all users have password_hash
-      if (password !== 'Meticulous25$') {
-        console.log('❌ Invalid fallback password for:', email);
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials'
-        });
-      }
-      
-      // Hash the password for future logins
-      const saltRounds = 12;
-      const passwordHash = await bcrypt.hash(password, saltRounds);
-      
-      await supabase
-        .from('internal_users')
-        .update({ password_hash: passwordHash })
-        .eq('id', internalUser.id);
+    // Partner login logic (unchanged)
+    const user = authData.user;
+    
+    const { data: partner, error: partnerError } = await supabase
+      .from('partners')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (partnerError || !partner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Partner account not found'
+      });
     }
 
-    // Remove sensitive data from response
-    const { password_hash, ...userWithoutPassword } = internalUser;
+    if (!partner.is_active) {
+      return res.status(403).json({
+        success: false,
+        message: 'Partner account is not active'
+      });
+    }
 
-    console.log('✅ Internal login successful for:', email);
+    const { password_hash: partnerPasswordHash, ...safePartnerData } = partner;
 
     res.json({
       success: true,
       message: 'Login successful',
-      data: userWithoutPassword
+      data: {
+        user: safePartnerData,
+        userType: 'partner',
+        session: authData.session
+      }
     });
 
   } catch (error) {
-    console.error('Internal login error:', error);
+    console.error('💥 Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error during login'
@@ -279,87 +296,26 @@ router.post('/internal-login', async (req, res) => {
   }
 });
 
-// @route   POST /api/auth/partner-login
-// @desc    Partner login via Supabase Auth (frontend handles this directly)
-// @access  Public
-
-
-router.post('/partner-login', async (req, res) => {
+// @route   POST /api/auth/logout
+// @desc    Logout user
+// @access  Private
+router.post('/logout', authenticateUser, async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    // 🔍 Validate input
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email and password are required.'
-      });
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      console.error('Logout error:', error);
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    console.log('🔐 Partner login attempt for:', normalizedEmail);
-
-    // 1️⃣ Fetch partner including hashed password
-    const { data: partner, error } = await supabase
-      .from('partners')
-      .select('id, company_name, email, password_hash, is_active, bank_verified')
-      .eq('email', normalizedEmail)
-      .single();
-
-    if (error || !partner) {
-      console.log('❌ No active partner found for:', normalizedEmail);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password.'
-      });
-    }
-
-    if (!partner.is_active) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account is inactive. Please contact support.'
-      });
-    }
-
-    // 2️⃣ Verify password (Supabase stores it hashed)
-    const validPassword = await bcrypt.compare(password, partner.password_hash);
-
-    if (!validPassword) {
-      console.log('❌ Invalid password for:', normalizedEmail);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password.'
-      });
-    }
-
-    // 3️⃣ Generate JWT token
-    const token = jwt.sign(
-      {
-        id: partner.id,
-        email: partner.email,
-        role: 'partner'
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
-    console.log('✅ Partner login successful:', partner.company_name);
-
-    // 4️⃣ Remove password before sending back
-    const { password_hash, ...safePartner } = partner;
-
-    return res.status(200).json({
+    res.json({
       success: true,
-      message: 'Login successful',
-      data: safePartner,
-      token
+      message: 'Logged out successfully'
     });
-
-  } catch (err) {
-    console.error('🔥 Partner login error:', err);
-    return res.status(500).json({
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Logout failed'
     });
   }
 });
@@ -492,19 +448,47 @@ router.post('/reset-password', async (req, res) => {
 // @route   GET /api/auth/me
 // @desc    Get current user profile
 // @access  Private
-router.get('/me', async (req, res) => {
+router.get('/me', authenticateUser, async (req, res) => {
   try {
-    // This would require authentication middleware
-    // For now, return simple response
+    const user = req.user;
+    let userData = null;
+    let userType = null;
+
+    // Determine user type and fetch profile
+    const [partnerResult, internalResult] = await Promise.all([
+      supabase.from('partners').select('*').eq('id', user.id).single(),
+      supabase.from('internal_users').select('*').eq('id', user.id).single()
+    ]);
+
+    if (partnerResult.data) {
+      userData = partnerResult.data;
+      userType = 'partner';
+    } else if (internalResult.data) {
+      userData = internalResult.data;
+      userType = 'internal';
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: 'User profile not found'
+      });
+    }
+
+    // Remove sensitive data
+    const { password_hash, ...safeUserData } = userData;
+
     res.json({
       success: true,
-      message: 'Auth check endpoint'
+      data: {
+        user: safeUserData,
+        userType
+      }
     });
+
   } catch (error) {
-    console.error('Auth check error:', error);
+    console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Failed to fetch user profile'
     });
   }
 });
@@ -636,13 +620,6 @@ router.post('/verify-otp', async (req, res) => {
       message: 'Internal server error'
     });
   }
-});
-
-router.get('/partner-dashboard', verifyPartnerToken, async (req, res) => {
-  res.json({
-    success: true,
-    message: `Welcome back, partner ${req.partner.email}!`,
-  });
 });
 
 export default router;

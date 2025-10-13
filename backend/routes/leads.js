@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateInternal } from '../middleware/auth.js';
+import { supabase } from '../config/supabase.js';
 
 const router = express.Router();
 
