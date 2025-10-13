@@ -3,113 +3,202 @@ import { CONFIG, apiClient } from './config.js';
 import Toast from './utils/toast.js';
 
 export class AuthManager {
-    // Check if user is authenticated
-    static async checkAuth() {
-        try {
-            const { data: { session }, error } = await supabase.auth.getSession();
+
+    
+
+    // Unified login for both partners and internal users
+    static async login(email, password, userType = 'auto') {
+    try {
+        console.log(`🔐 Attempting login for: ${email}`);
+        
+        const response = await apiClient.post(CONFIG.API.ENDPOINTS.AUTH.LOGIN, {
+            email: email.trim().toLowerCase(),
+            password: password
+        });
+
+        if (response.data.success) {
+            const { user, userType, session } = response.data.data;
             
-            if (error) {
-                console.error('Auth check error:', error);
-                return null;
+            // ✅ Store the appropriate token
+            if (session?.access_token) {
+                localStorage.setItem('authToken', session.access_token);
+                console.log('✅ Auth token stored:', session.access_token.substring(0, 20) + '...');
+            } else {
+                console.warn('⚠️ No access token in response');
             }
             
-            return session;
-        } catch (error) {
-            console.error('Auth check failed:', error);
-            return null;
-        }
-    }
-
-    // Partner login with Supabase Auth
-    static async partnerLogin(email, password) {
-        try {
-            console.log('🔐 Attempting partner login for:', email);
-            
-            const response = await apiClient.post(CONFIG.API.ENDPOINTS.AUTH.PARTNER_LOGIN, {
-                email: email.trim().toLowerCase(),
-                password: password
-            });
-
-            if (response.data.success) {
-                // Store partner in localStorage
-                localStorage.setItem('currentPartner', JSON.stringify(response.data.data));
+            // Store user based on type
+            if (userType === 'partner') {
+                localStorage.setItem('currentPartner', JSON.stringify(user));
+                localStorage.removeItem('internalUser');
                 
-                Toast.success(`Welcome back, ${response.data.data.company_name}! Redirecting...`);
-                
+                Toast.success(`Welcome back, ${user.company_name}!`);
                 setTimeout(() => {
                     window.location.href = 'partner-dashboard.html';
                 }, 1500);
                 
-                return { success: true, data: response.data.data };
-            } else {
-                throw new Error(response.data.message || 'Login failed');
+            } else if (userType === 'internal') {
+                localStorage.setItem('internalUser', JSON.stringify(user));
+                localStorage.removeItem('currentPartner');
+                
+                Toast.success(`Welcome back, ${user.name}!`);
+                setTimeout(() => {
+                    window.location.href = 'internal-dashboard.html';
+                }, 1500);
             }
             
-        } catch (error) {
-            console.error('💥 Partner login error:', error);
-            
-            let errorMessage = 'An unexpected error occurred. Please try again.';
-            
-            if (error.response) {
-                switch (error.response.status) {
-                    case 401:
-                        errorMessage = 'Invalid email or password. Please try again.';
-                        break;
-                    case 403:
-                        errorMessage = 'Your account has been suspended. Please contact support.';
-                        break;
-                    case 404:
-                        errorMessage = 'Account not found. Please check your credentials.';
-                        break;
-                    case 429:
-                        errorMessage = 'Too many login attempts. Please try again later.';
-                        break;
-                    case 500:
-                        errorMessage = 'Server error. Please try again later.';
-                        break;
-                    default:
-                        errorMessage = error.response.data?.message || errorMessage;
-                }
-            } else if (error.message) {
-                errorMessage = error.message;
-            }
-
-            Toast.error(errorMessage);
-            return { success: false, error: errorMessage };
-        }
-    }
-
-    // Internal user login
-    static async internalLogin(email, password) {
-        try {
-        console.log('🔐 Attempting internal login for:', email);
-        
-        const response = await apiClient.post(CONFIG.API.ENDPOINTS.AUTH.INTERNAL_LOGIN, {
-            email: email.trim().toLowerCase(),
-            password: password
-        });
-    
-        if (response.data.success) {
-            // Store internal user session
-            localStorage.setItem('internalUser', JSON.stringify(response.data.data));
-            
-            Toast.success('Welcome back! Redirecting to internal dashboard...');
-            
-            // Smooth redirect
-            setTimeout(() => {
-            window.location.href = 'internal-dashboard.html';
-            }, 1500);
-            
-            return { success: true, data: response.data.data };
+            return { success: true, user, userType };
         } else {
             throw new Error(response.data.message || 'Login failed');
         }
-        } catch (error) {
-        console.error('Internal login error:', error);
-        const errorMessage = error.response?.data?.message || error.message || 'Login failed. Please check your credentials.';
+        
+    } catch (error) {
+        console.error('💥 Login error:', error);
+        
+        let errorMessage = 'An unexpected error occurred. Please try again.';
+        
+        if (error.response) {
+            errorMessage = error.response.data?.message || errorMessage;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
         Toast.error(errorMessage);
         return { success: false, error: errorMessage };
+    }
+}
+
+    // Partner-specific login (legacy support)
+    static async partnerLogin(email, password) {
+        return this.login(email, password, 'partner');
+    }
+
+    // Internal-specific login (legacy support)
+    static async internalLogin(email, password) {
+        return this.login(email, password, 'internal');
+    }
+
+    // Get current user profile from backend
+    static async getCurrentUserProfile() {
+        try {
+            const response = await apiClient.get(CONFIG.API.ENDPOINTS.AUTH.ME);
+            
+            if (response.data.success) {
+                const { user, userType } = response.data.data;
+                
+                // Update localStorage with fresh data
+                if (userType === 'partner') {
+                    localStorage.setItem('currentPartner', JSON.stringify(user));
+                } else if (userType === 'internal') {
+                    localStorage.setItem('internalUser', JSON.stringify(user));
+                }
+                
+                return { success: true, user, userType };
+            } else {
+                throw new Error('Failed to fetch user profile');
+            }
+        } catch (error) {
+            console.error('Get profile error:', error);
+            return { success: false, error: error.message };
         }
+    }
+
+    // Check if user is authenticated
+    static async checkAuth() {
+        try {
+            // Check if we have a token
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                return false;
+            }
+
+            // Verify token is still valid by making a simple API call
+            const response = await apiClient.get(CONFIG.API.ENDPOINTS.AUTH.ME);
+            return response.data.success;
+            
+        } catch (error) {
+            console.error('Auth check error:', error);
+            // Clear invalid token
+            if (error.response?.status === 401) {
+                this.clearAuth();
+            }
+            return false;
+        }
+    }
+
+    // Clear all auth data
+    static clearAuth() {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('currentPartner');
+        localStorage.removeItem('internalUser');
+        localStorage.removeItem('currentUser');
+    }
+
+    // Logout
+    static async logout() {
+        try {
+            // Call backend logout if needed
+            await apiClient.post(CONFIG.API.ENDPOINTS.AUTH.LOGOUT);
+        } catch (error) {
+            console.error('Logout API error:', error);
+        } finally {
+            // Always clear local storage
+            this.clearAuth();
+            
+            Toast.success('👋 Logged out successfully');
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 1000);
+        }
+    }
+
+    // Get current user from localStorage
+    static getCurrentUser() {
+        // Check internal user first
+        const internalUser = localStorage.getItem('internalUser');
+        if (internalUser) {
+            try {
+                return { type: 'internal', data: JSON.parse(internalUser) };
+            } catch (e) {
+                localStorage.removeItem('internalUser');
+            }
+        }
+        
+        // Check partner
+        const partner = localStorage.getItem('currentPartner');
+        if (partner) {
+            try {
+                return { type: 'partner', data: JSON.parse(partner) };
+            } catch (e) {
+                localStorage.removeItem('currentPartner');
+            }
+        }
+        
+        return null;
+    }
+
+    // Check and redirect if not authenticated
+    static async requireAuth(userType = null) {
+        const isAuthenticated = await this.checkAuth();
+        const currentUser = this.getCurrentUser();
+        
+        if (!isAuthenticated) {
+            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname);
+            return false;
+        }
+
+        // Specific user type requirement
+        if (userType === 'internal' && currentUser?.type !== 'internal') {
+            window.location.href = 'login.html';
+            return false;
+        }
+
+        if (userType === 'partner' && currentUser?.type !== 'partner') {
+            window.location.href = 'login.html';
+            return false;
+        }
+
+        return true;
     }
 
     // Forgot password
@@ -155,92 +244,6 @@ export class AuthManager {
         }
     }
 
-    // Logout
-    static async logout() {
-        try {
-            const { error } = await supabase.auth.signOut();
-            localStorage.removeItem('internalUser');
-            localStorage.removeItem('currentPartner');
-            
-            if (error) throw error;
-            
-            Toast.success('👋 Logged out successfully');
-            setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 1000);
-        } catch (error) {
-            console.error('Logout error:', error);
-            // Force logout anyway
-            localStorage.removeItem('internalUser');
-            localStorage.removeItem('currentPartner');
-            window.location.href = 'login.html';
-        }
-    }
-
-    // Get current user
-    static getCurrentUser() {
-        // Check internal user first
-        const internalUser = localStorage.getItem('internalUser');
-        if (internalUser) {
-            try {
-                return { type: 'internal', data: JSON.parse(internalUser) };
-            } catch (e) {
-                localStorage.removeItem('internalUser');
-            }
-        }
-        
-        // Check partner
-        const partner = localStorage.getItem('currentPartner');
-        if (partner) {
-            try {
-                return { type: 'partner', data: JSON.parse(partner) };
-            } catch (e) {
-                localStorage.removeItem('currentPartner');
-            }
-        }
-        
-        return null;
-    }
-
-    // Check and redirect if not authenticated
-    static async requireAuth(userType = null) {
-        const currentUser = this.getCurrentUser();
-        const session = await this.checkAuth();
-        
-        const isAuthenticated = currentUser || session;
-        
-        if (!isAuthenticated) {
-            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname);
-            return false;
-        }
-
-        if (userType === 'internal' && currentUser?.type !== 'internal') {
-            window.location.href = 'login.html';
-            return false;
-        }
-
-        if (userType === 'partner' && !session && currentUser?.type !== 'partner') {
-            window.location.href = 'login.html';
-            return false;
-        }
-
-        return true;
-    }
-
-    // Get friendly auth error messages
-    static getFriendlyAuthError(error) {
-        const errorMap = {
-            'Invalid login credentials': 'Invalid email or password. Please try again.',
-            'Email not confirmed': 'Please verify your email address before logging in. Check your inbox for the verification link.',
-            'Invalid email or password': 'Invalid email or password. Please try again.',
-            'User not found': 'No account found with this email address.',
-            'Too many requests': 'Too many login attempts. Please try again in a few minutes.',
-            'Network request failed': 'Network error. Please check your internet connection.'
-        };
-        
-        return errorMap[error.message] || error.message || 'Login failed. Please try again.';
-    }
-
     // Validate email format
     static isValidEmail(email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -250,6 +253,20 @@ export class AuthManager {
     // Validate password strength
     static isStrongPassword(password) {
         return password.length >= 8;
+    }
+
+    // Get friendly auth error messages
+    static getFriendlyAuthError(error) {
+        const errorMap = {
+            'Invalid login credentials': 'Invalid email or password. Please try again.',
+            'Email not confirmed': 'Please verify your email address before logging in.',
+            'Invalid email or password': 'Invalid email or password. Please try again.',
+            'User not found': 'No account found with this email address.',
+            'Too many requests': 'Too many login attempts. Please try again in a few minutes.',
+            'Network request failed': 'Network error. Please check your internet connection.'
+        };
+        
+        return errorMap[error.message] || error.message || 'Login failed. Please try again.';
     }
 }
 

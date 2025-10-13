@@ -29,35 +29,6 @@
             background: var(--primary-gradient);
         }
 
-        .tab-content { 
-            display: none;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-        .tab-content.active { 
-            display: block; 
-        }
-        
-        .tab-button {
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        
-        .tab-button.active {
-            background-color: #eff6ff;
-            color: #2563eb;
-            border-bottom: 3px solid #2563eb;
-        }
-        
-        .tab-button:hover:not(.active) {
-            background-color: #f8fafc;
-            color: #374151;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
         .loading-spinner {
             animation: spin 1s linear infinite;
         }
@@ -77,12 +48,30 @@
             font-size: 0.875rem;
             margin-top: 0.25rem;
         }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-900 to-blue-950 min-h-screen flex items-center justify-center p-4 font-['Inter']">
     <div class="w-full max-w-md">
         <!-- Logo & Trust Badge -->
-        <div class="text-center mb-8">
+        <div class="text-center mb-8 slide-up">
             <div class="trust-badge inline-flex items-center px-4 py-2 rounded-full mb-4">
                 <i class="fas fa-shield-alt text-white mr-2"></i>
                 <span class="text-white text-sm font-medium">Enterprise Secure</span>
@@ -91,109 +80,65 @@
             <p class="text-blue-200 text-sm uppercase tracking-widest">Partner Portal</p>
         </div>
 
-        <!-- Login Card -->
-        <div class="glass-card rounded-2xl shadow-2xl overflow-hidden">
-            <!-- Tab Navigation -->
-            <div class="flex border-b">
-                <button id="partnerTab" class="tab-button active flex-1 py-4 font-medium text-center">
-                    <i class="fas fa-handshake mr-2"></i>Partner
-                </button>
-                <button id="internalTab" class="tab-button flex-1 py-4 font-medium text-center text-gray-500">
-                    <i class="fas fa-users mr-2"></i>Internal
-                </button>
+        <!-- Unified Login Card -->
+        <div class="glass-card rounded-2xl shadow-2xl overflow-hidden fade-in">
+            <!-- Card Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 text-center">
+                <h2 class="text-xl font-bold text-white">Welcome Back</h2>
+                <p class="text-blue-100 text-sm">Sign in to your account</p>
             </div>
 
-            <!-- Forms -->
-            <div class="p-6 md:p-8">
-                <!-- Partner Login Form -->
-                <form id="partnerLoginForm" class="tab-content active">
-                    <div class="mb-5">
-                        <label for="partnerEmail" class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="fas fa-envelope text-blue-500 mr-1"></i>Email Address
-                        </label>
-                        <input type="email" id="partnerEmail" required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                               placeholder="your@company.com"
-                               autocomplete="email">
-                        <div id="partnerEmailError" class="error-message hidden"></div>
-                    </div>
-                    <div class="mb-4">
-                        <label for="partnerPassword" class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="fas fa-key text-blue-500 mr-1"></i>Password
-                        </label>
-                        <input type="password" id="partnerPassword" required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                               placeholder="••••••••"
-                               autocomplete="current-password">
-                        <div id="partnerPasswordError" class="error-message hidden"></div>
-                    </div>
-                    
-                    <!-- Forgot Password Link -->
-                    <div class="mb-6 text-right">
-                        <button type="button" onclick="openForgotPassword('partner')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                            <i class="fas fa-key mr-1"></i>Forgot your password?
-                        </button>
-                    </div>
+            <!-- Unified Login Form -->
+            <form id="loginForm" class="p-6 md:p-8">
+                <div class="mb-5">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-envelope text-blue-500 mr-2"></i>Email Address
+                    </label>
+                    <input type="email" id="email" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                           placeholder="Enter your email address"
+                           autocomplete="email">
+                    <div id="emailError" class="error-message hidden"></div>
+                </div>
 
-                    <button type="submit" id="partnerSubmitBtn"
-                            class="w-full trust-badge text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-sign-in-alt mr-2"></i> 
-                        <span class="btn-text">Partner Login</span>
-                        <div class="loading-spinner hidden ml-2">
-                            <i class="fas fa-spinner"></i>
-                        </div>
+                <div class="mb-4">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-key text-blue-500 mr-2"></i>Password
+                    </label>
+                    <input type="password" id="password" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                           placeholder="Enter your password"
+                           autocomplete="current-password">
+                    <div id="passwordError" class="error-message hidden"></div>
+                </div>
+
+                <!-- Forgot Password Link -->
+                <div class="mb-6 text-right">
+                    <button type="button" onclick="openForgotPassword()" class="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors">
+                        <i class="fas fa-key mr-1"></i>Forgot your password?
                     </button>
+                </div>
 
-                    <div class="mt-4 text-center">
-                        <p class="text-sm text-gray-600">
-                            Don't have an account? 
-                            <a href="partner-signup.html" class="text-blue-600 hover:text-blue-700 font-medium transition-colors">
-                                <i class="fas fa-user-plus mr-1"></i>Apply Now
-                            </a>
-                        </p>
+                <!-- Login Button -->
+                <button type="submit" id="loginSubmitBtn"
+                        class="w-full trust-badge text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                    <i class="fas fa-sign-in-alt mr-2"></i> 
+                    <span class="btn-text">Sign In</span>
+                    <div class="loading-spinner hidden ml-2">
+                        <i class="fas fa-spinner"></i>
                     </div>
-                </form>
+                </button>
 
-                <!-- Internal Login Form -->
-                <form id="internalLoginForm" class="tab-content">
-                    <div class="mb-5">
-                        <label for="internalEmail" class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="fas fa-envelope text-blue-500 mr-1"></i>Email Address
-                        </label>
-                        <input type="email" id="internalEmail" required 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" 
-                               placeholder="you@cryptware.com"
-                               autocomplete="email">
-                        <div id="internalEmailError" class="error-message hidden"></div>
-                    </div>
-                    <div class="mb-4">
-                        <label for="internalPassword" class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="fas fa-key text-blue-500 mr-1"></i>Password
-                        </label>
-                        <input type="password" id="internalPassword" required 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" 
-                               placeholder="••••••••"
-                               autocomplete="current-password">
-                        <div id="internalPasswordError" class="error-message hidden"></div>
-                    </div>
-                    
-                    <!-- Forgot Password Link -->
-                    <div class="mb-6 text-right">
-                        <button type="button" onclick="openForgotPassword('internal')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                            <i class="fas fa-key mr-1"></i>Forgot your password?
-                        </button>
-                    </div>
-
-                    <button type="submit" id="internalSubmitBtn"
-                            class="w-full trust-badge text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-sign-in-alt mr-2"></i>
-                        <span class="btn-text">Internal Login</span>
-                        <div class="loading-spinner hidden ml-2">
-                            <i class="fas fa-spinner"></i>
-                        </div>
-                    </button>
-                </form>
-            </div>
+                <!-- Registration Link -->
+                <div class="mt-6 text-center">
+                    <p class="text-sm text-gray-600">
+                        Don't have a partner account? 
+                        <a href="partner-signup.html" class="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200">
+                            <i class="fas fa-user-plus mr-1"></i>Apply Now
+                        </a>
+                    </p>
+                </div>
+            </form>
         </div>
 
     </div>
@@ -239,25 +184,13 @@
     </div>
 
     <script>
-        // Tab switching
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active', 'text-blue-600', 'bg-blue-50');
-                btn.classList.add('text-gray-500');
-            });
-            
-            const activeTab = document.getElementById(tab + 'Tab');
-            activeTab.classList.add('active', 'text-blue-600', 'bg-blue-50');
-            activeTab.classList.remove('text-gray-500');
-
-            document.querySelectorAll('.tab-content').forEach(form => form.classList.remove('active'));
-            document.getElementById(tab + 'LoginForm').classList.add('active');
-            
-            // Clear any previous errors
-            clearErrors();
-        }
-
-        // Clear error states
+        // DOM Elements
+        const loginForm = document.getElementById('loginForm');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+    
+        // Utility Functions
         function clearErrors() {
             document.querySelectorAll('.error-message').forEach(el => {
                 el.classList.add('hidden');
@@ -267,8 +200,7 @@
                 input.classList.remove('input-error');
             });
         }
-
-        // Show error for specific field
+    
         function showError(fieldId, message) {
             const input = document.getElementById(fieldId);
             const errorDiv = document.getElementById(fieldId + 'Error');
@@ -277,122 +209,147 @@
                 input.classList.add('input-error');
                 errorDiv.textContent = message;
                 errorDiv.classList.remove('hidden');
+                input.focus();
             }
         }
-
-        // Show loading state for button
-        function setLoading(button, isLoading) {
+    
+        function setLoading(button, isLoading, loadingText = 'Signing in...') {
             const btnText = button.querySelector('.btn-text');
             const spinner = button.querySelector('.loading-spinner');
             
             if (isLoading) {
                 button.disabled = true;
-                btnText.textContent = button.id.includes('partner') ? 'Signing in...' : 'Signing in...';
+                btnText.textContent = loadingText;
                 spinner.classList.remove('hidden');
             } else {
                 button.disabled = false;
-                btnText.textContent = button.id.includes('partner') ? 'Partner Login' : 'Internal Login';
+                btnText.textContent = 'Sign In';
                 spinner.classList.add('hidden');
             }
         }
-
-        // Event listeners for tabs
-        document.getElementById('partnerTab').addEventListener('click', () => switchTab('partner'));
-        document.getElementById('internalTab').addEventListener('click', () => switchTab('internal'));
-
-        // Partner login form
-        document.getElementById('partnerLoginForm').addEventListener('submit', async (e) => {
+    
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+    
+        // Enhanced API Client with better error handling
+        const apiClient = axios.create({
+            baseURL: 'http://localhost:8000/api',
+            timeout: 10000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+    
+        // Unified Login Handler - PRODUCTION READY
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             clearErrors();
             
-            const email = document.getElementById('partnerEmail').value.trim();
-            const password = document.getElementById('partnerPassword').value;
-            const submitBtn = document.getElementById('partnerSubmitBtn');
-
-            // Basic validation
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+    
+            // Validation
             if (!email) {
-                showError('partnerEmail', 'Email is required');
+                showError('email', 'Email is required');
                 return;
             }
             
             if (!password) {
-                showError('partnerPassword', 'Password is required');
+                showError('password', 'Password is required');
                 return;
             }
-
-            if (!AuthManager.isValidEmail(email)) {
-                showError('partnerEmail', 'Please enter a valid email address');
+    
+            if (!isValidEmail(email)) {
+                showError('email', 'Please enter a valid email address');
                 return;
             }
-
-            setLoading(submitBtn, true);
-
+    
+            setLoading(loginSubmitBtn, true);
+    
             try {
-                const result = await AuthManager.partnerLogin(email, password);
+                console.log('🔐 Attempting unified login for:', email);
                 
-                if (!result.success) {
-                    // Error is already shown by AuthManager
-                    console.log('Partner login failed');
+                const response = await apiClient.post('/auth/login', {
+                    email: email,
+                    password: password
+                });
+    
+                console.log('✅ Login response:', response.data);
+    
+                if (response.data.success) {
+                    const { user, userType, session } = response.data.data;
+                    
+                    // Store user data based on type
+                    if (userType === 'partner') {
+                        localStorage.setItem('currentPartner', JSON.stringify(user));
+                        if (session?.access_token) {
+                            localStorage.setItem('authToken', session.access_token);
+                        }
+                        Toast.success(`Welcome back, ${user.company_name}!`);
+                        
+                        setTimeout(() => {
+                            window.location.href = 'partner-dashboard.html';
+                        }, 1000);
+                        
+                    } else if (userType === 'internal') {
+                        localStorage.setItem('internalUser', JSON.stringify(user));
+                        if (session?.access_token) {
+                            localStorage.setItem('authToken', session.access_token);
+                        }
+                        Toast.success(`Welcome back, ${user.name}!`);
+                        
+                        setTimeout(() => {
+                            window.location.href = 'internal-dashboard.html';
+                        }, 1000);
+                    }
+                    
+                } else {
+                    throw new Error(response.data.message || 'Login failed');
                 }
+                
             } catch (error) {
-                console.error('Login error:', error);
-                Toast.error('An unexpected error occurred. Please try again.');
+                console.error('💥 Login error:', error);
+                
+                let errorMessage = 'Login failed. Please check your credentials.';
+                
+                // Handle different error types
+                if (error.code === 'ERR_NETWORK') {
+                    errorMessage = 'Network error. Please check your connection and ensure the backend server is running.';
+                } else if (error.response?.status === 405) {
+                    errorMessage = 'Server configuration error. Please contact support.';
+                } else if (error.response?.status === 404) {
+                    errorMessage = 'Login endpoint not found. Please contact support.';
+                } else if (error.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+    
+                Toast.error(errorMessage);
+                
+                // Show specific field errors
+                if (errorMessage.toLowerCase().includes('email')) {
+                    showError('email', errorMessage);
+                } else if (errorMessage.toLowerCase().includes('password')) {
+                    showError('password', errorMessage);
+                } else if (errorMessage.toLowerCase().includes('network')) {
+                    // Network errors don't belong to specific fields
+                    showError('email', 'Server connection failed');
+                }
             } finally {
-                setLoading(submitBtn, false);
+                setLoading(loginSubmitBtn, false);
             }
         });
-
-        // Internal login form
-        document.getElementById('internalLoginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            clearErrors();
-            
-            const email = document.getElementById('internalEmail').value.trim();
-            const password = document.getElementById('internalPassword').value;
-            const submitBtn = document.getElementById('internalSubmitBtn');
-
-            // Basic validation
-            if (!email) {
-                showError('internalEmail', 'Email is required');
-                return;
-            }
-            
-            if (!password) {
-                showError('internalPassword', 'Password is required');
-                return;
-            }
-
-            if (!AuthManager.isValidEmail(email)) {
-                showError('internalEmail', 'Please enter a valid email address');
-                return;
-            }
-
-            setLoading(submitBtn, true);
-
-            try {
-                const result = await AuthManager.internalLogin(email, password);
-                
-                if (!result.success) {
-                    // Error is already shown by AuthManager
-                    console.log('Internal login failed');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                Toast.error('An unexpected error occurred. Please try again.');
-            } finally {
-                setLoading(submitBtn, false);
-            }
-        });
-
-        // Forgot password functions
-        window.openForgotPassword = function(userType) {
+    
+        // Forgot Password Functions
+        window.openForgotPassword = function() {
             const modal = document.getElementById('forgotPasswordModal');
             const form = modal.querySelector('.bg-white');
             
-            // Pre-fill email from current form
-            const activeForm = document.querySelector('.tab-content.active');
-            const emailInput = activeForm.querySelector('input[type="email"]');
-            if (emailInput && emailInput.value) {
+            // Pre-fill email from login form
+            if (emailInput.value) {
                 document.getElementById('resetEmail').value = emailInput.value;
             }
             
@@ -402,7 +359,7 @@
                 form.classList.add('scale-100', 'opacity-100');
             }, 10);
         };
-
+    
         window.closeForgotPassword = function() {
             const modal = document.getElementById('forgotPasswordModal');
             const form = modal.querySelector('.bg-white');
@@ -416,8 +373,8 @@
                 document.getElementById('resetEmailError').classList.add('hidden');
             }, 300);
         };
-
-        // Forgot password form submission
+    
+        // Forgot Password Form Submission
         document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             clearErrors();
@@ -429,76 +386,109 @@
                 showError('resetEmail', 'Email is required');
                 return;
             }
-
-            if (!AuthManager.isValidEmail(email)) {
+    
+            if (!isValidEmail(email)) {
                 showError('resetEmail', 'Please enter a valid email address');
                 return;
             }
-
-            setLoading(submitBtn, true);
-
+    
+            setLoading(submitBtn, true, 'Sending...');
+    
             try {
-                const result = await AuthManager.forgotPassword(email);
-                
-                if (result.success) {
+                const response = await apiClient.post('/auth/forgot-password', {
+                    email: email
+                });
+    
+                if (response.data.success) {
+                    Toast.success('📧 Check your email for reset instructions');
                     window.closeForgotPassword();
+                } else {
+                    throw new Error(response.data.message || 'Failed to send reset email');
                 }
             } catch (error) {
                 console.error('Forgot password error:', error);
+                const errorMessage = error.response?.data?.message || error.message || 'Failed to send reset instructions';
+                Toast.error(errorMessage);
             } finally {
                 setLoading(submitBtn, false);
             }
         });
-
-        // Check if already logged in
+    
+        // Auto-redirect if already logged in
         document.addEventListener('DOMContentLoaded', async () => {
-            const currentUser = AuthManager.getCurrentUser();
+            // Check for existing sessions
+            const partner = localStorage.getItem('currentPartner');
+            const internalUser = localStorage.getItem('internalUser');
             
-            if (currentUser) {
-                if (currentUser.type === 'partner') {
-                    window.location.href = 'partner-dashboard.html';
-                } else if (currentUser.type === 'internal') {
-                    window.location.href = 'internal-dashboard.html';
-                }
+            if (partner) {
+                window.location.href = 'partner-dashboard.html';
+                return;
             }
             
-            // Add demo credentials helper in development
+            if (internalUser) {
+                window.location.href = 'internal-dashboard.html';
+                return;
+            }
+    
+            // Show demo helper in development
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 document.getElementById('demoHelper').classList.remove('hidden');
             }
-
-            // Check for redirect parameter
+    
+            // Check for URL parameters
             const urlParams = new URLSearchParams(window.location.search);
-            const redirect = urlParams.get('redirect');
             const verified = urlParams.get('verified');
             
             if (verified) {
                 Toast.success('🎉 Email verified successfully! You can now login.');
             }
-            
-            if (redirect) {
-                console.log('Redirect requested to:', redirect);
-            }
+    
+            // Auto-focus email field
+            emailInput.focus();
         });
-
-        // Close modal on outside click
+    
+        // Modal close handlers
         document.getElementById('forgotPasswordModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeForgotPassword();
             }
         });
-
-        // Enter key support for forms
+    
+        // Enter key support
         document.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                const activeForm = document.querySelector('.tab-content.active');
-                if (activeForm) {
-                    const submitBtn = activeForm.querySelector('button[type="submit"]');
+                const activeModal = document.getElementById('forgotPasswordModal');
+                if (!activeModal.classList.contains('hidden')) {
+                    const submitBtn = activeModal.querySelector('button[type="submit"]');
                     if (submitBtn && !submitBtn.disabled) {
                         submitBtn.click();
                     }
+                } else {
+                    if (loginSubmitBtn && !loginSubmitBtn.disabled) {
+                        loginSubmitBtn.click();
+                    }
                 }
             }
+        });
+    
+        // Enhanced input interactions
+        emailInput.addEventListener('input', () => {
+            emailInput.classList.remove('input-error');
+            document.getElementById('emailError').classList.add('hidden');
+        });
+    
+        passwordInput.addEventListener('input', () => {
+            passwordInput.classList.remove('input-error');
+            document.getElementById('passwordError').classList.add('hidden');
+        });
+    
+        // Network status monitoring
+        window.addEventListener('online', () => {
+            console.log('🌐 Network connection restored');
+        });
+    
+        window.addEventListener('offline', () => {
+            Toast.error('📡 Network connection lost');
         });
     </script>
 </body>

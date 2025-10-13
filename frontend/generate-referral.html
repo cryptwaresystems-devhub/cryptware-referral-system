@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Referral | Cryptware</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                0 2px 4px -1px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .trust-badge {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .form-step {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            transform: translateX(20px);
+            display: none;
+        }
+
+        .form-step.active {
+            opacity: 1;
+            transform: translateX(0);
+            display: block;
+        }
+
+        .progress-ring {
+            transition: stroke-dashoffset 0.8s ease-in-out;
+        }
+
+        .floating-card {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(1deg); }
+        }
+
+        .slide-in {
+            animation: slideIn 0.6s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .success-checkmark {
+            animation: successCheck 0.6s ease-in-out;
+        }
+
+        @keyframes successCheck {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .pulse-glow {
+            animation: pulseGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            from { box-shadow: 0 0 20px rgba(37, 99, 235, 0.4); }
+            to { box-shadow: 0 0 30px rgba(37, 99, 235, 0.8); }
+        }
+
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            .container-padding {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            .mobile-stack {
+                flex-direction: column;
+            }
+            
+            .mobile-full {
+                width: 100%;
+            }
+            
+            .mobile-text-center {
+                text-align: center;
+            }
+            
+            .mobile-hidden {
+                display: none;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1.5rem;
+            }
+        }
+
+        /* Custom form styling */
+        .form-input {
+            transition: all 0.3s ease;
+            border: 2px solid #e5e7eb;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .form-input.error {
+            border-color: var(--danger);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .error-message {
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .error-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+
+        .step-indicator.active {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .step-indicator.completed {
+            background: var(--success);
+            color: white;
+        }
+
+        /* Loading spinner */
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 min-h-screen font-['Inter']">
+    <!-- Enhanced Navigation -->
+    <nav class="bg-white/95 backdrop-blur-lg border-b border-gray-200/60 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo & Back Button -->
+                <div class="flex items-center space-x-4">
+                    <a href="partner-dashboard.html" class="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                        <span class="hidden sm:block font-medium">Back to Dashboard</span>
+                    </a>
+                    <div class="trust-badge p-2 rounded-xl">
+                        <i class="fas fa-shield-alt text-white"></i>
+                    </div>
+                    <div class="hidden sm:block">
+                        <h1 class="text-xl font-bold text-gray-900">Cryptware</h1>
+                        <p class="text-xs text-gray-500">Partner Portal</p>
+                    </div>
+                </div>
+
+                <!-- Progress Indicator -->
+                <div class="hidden md:flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-gray-900" id="partnerCompanyName">Loading...</p>
+                        <p class="text-xs text-green-600 flex items-center justify-end">
+                            <i class="fas fa-check-circle mr-1"></i>
+                            <span>Verified Partner</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Mobile Menu -->
+                <div class="md:hidden flex items-center space-x-2">
+                    <button id="mobileMenuButton" class="p-2 text-gray-600 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto container-padding py-8">
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center py-12">
+            <div class="animate-pulse space-y-4">
+                <div class="skeleton h-8 w-64 mx-auto rounded"></div>
+                <div class="skeleton h-4 w-96 mx-auto rounded"></div>
+                <div class="skeleton h-96 w-full rounded-2xl mt-8"></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="mainContent" class="hidden">
+            <!-- Header Section -->
+            <div class="text-center mb-8 slide-in">
+                <div class="trust-badge inline-flex items-center px-6 py-3 rounded-full mb-4">
+                    <i class="fas fa-rocket text-white mr-2"></i>
+                    <span class="text-white font-medium">Generate New Referral</span>
+                </div>
+                <h1 class="text-4xl font-bold text-gray-900 mb-4">Create Your Referral</h1>
+                <p class="text-gray-600 text-lg max-w-2xl mx-auto">
+                    Fill in the prospect details to generate a unique referral code and start earning commissions.
+                </p>
+            </div>
+
+            <!-- Progress Steps -->
+            <div class="glass-card rounded-2xl p-6 mb-8 slide-in" style="animation-delay: 0.1s;">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center space-x-4 flex-1">
+                        <div class="step-indicator w-10 h-10 rounded-full flex items-center justify-center font-semibold border-2 border-gray-300 active" data-step="1">
+                            <span>1</span>
+                        </div>
+                        <div class="flex-1 h-1 bg-gray-200">
+                            <div class="h-1 bg-green-500 transition-all duration-500" style="width: 0%" id="progressBar"></div>
+                        </div>
+                        <div class="step-indicator w-10 h-10 rounded-full flex items-center justify-center font-semibold border-2 border-gray-300" data-step="2">
+                            <span>2</span>
+                        </div>
+                        <div class="flex-1 h-1 bg-gray-200">
+                            <div class="h-1 bg-gray-200 transition-all duration-500"></div>
+                        </div>
+                        <div class="step-indicator w-10 h-10 rounded-full flex items-center justify-center font-semibold border-2 border-gray-300" data-step="3">
+                            <span>3</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-sm text-gray-600 px-2">
+                    <span class="font-medium text-blue-600">Company Details</span>
+                    <span>Contact Information</span>
+                    <span>Review & Generate</span>
+                </div>
+            </div>
+
+            <!-- Multi-step Form -->
+            <div class="glass-card rounded-2xl overflow-hidden slide-in" style="animation-delay: 0.2s;">
+                <form id="referralForm" class="p-8">
+                    <!-- Step 1: Company Details -->
+                    <div class="form-step active" id="step1">
+                        <div class="text-center mb-8">
+                            <div class="bg-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-building text-blue-600 text-2xl"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">Company Information</h2>
+                            <p class="text-gray-600">Tell us about the company you're referring</p>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div>
+                                <label for="prospectCompany" class="block text-sm font-semibold text-gray-900 mb-3">
+                                    <i class="fas fa-building text-blue-500 mr-2"></i>
+                                    Company Name *
+                                </label>
+                                <input type="text" id="prospectCompany" required
+                                       class="form-input w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Enter company name (e.g., Acme Corporation)">
+                                <div class="error-message text-red-600 text-sm mt-2" id="companyError"></div>
+                            </div>
+
+                            <div class="form-grid">
+                                <div>
+                                    <label for="companyIndustry" class="block text-sm font-semibold text-gray-900 mb-3">
+                                        <i class="fas fa-industry text-blue-500 mr-2"></i>
+                                        Industry *
+                                    </label>
+                                    <select id="companyIndustry" required 
+                                            class="form-input w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="">Select Industry</option>
+                                        <option value="technology">Technology & IT</option>
+                                        <option value="finance">Finance & Banking</option>
+                                        <option value="healthcare">Healthcare</option>
+                                        <option value="manufacturing">Manufacturing</option>
+                                        <option value="retail">Retail & E-commerce</option>
+                                        <option value="education">Education</option>
+                                        <option value="real-estate">Real Estate</option>
+                                        <option value="other">Other Industry</option>
+                                    </select>
+                                    <div class="error-message text-red-600 text-sm mt-2" id="industryError"></div>
+                                </div>
+
+                                <div>
+                                    <label for="estimatedDealValue" class="block text-sm font-semibold text-gray-900 mb-3">
+                                        <i class="fas fa-chart-line text-blue-500 mr-2"></i>
+                                        Estimated Deal Value (₦)
+                                    </label>
+                                    <input type="number" id="estimatedDealValue"
+                                           class="form-input w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           placeholder="e.g., 1000000"
+                                           min="0"
+                                           oninput="updateCommissionPreview()">
+                                    <div class="text-sm text-gray-500 mt-2">
+                                        Optional - helps track potential earnings
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Commission Preview -->
+                            <div id="commissionPreview" class="bg-blue-50 border border-blue-200 rounded-xl p-4 hidden">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-semibold text-blue-900">Potential Commission</p>
+                                        <p class="text-sm text-blue-700">Based on 5% commission rate</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-2xl font-bold text-blue-600" id="previewCommission">₦0</p>
+                                        <p class="text-sm text-blue-600" id="previewDealValue">on ₦0 deal</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end mt-8">
+                            <button type="button" onclick="nextStep(2)" 
+                                    class="trust-badge px-8 py-3 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2">
+                                <span>Continue to Contact</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Contact Information -->
+                    <div class="form-step" id="step2">
+                        <div class="text-center mb-8">
+                            <div class="bg-green-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-user-tie text-green-600 text-2xl"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">Contact Person</h2>
+                            <p class="text-gray-600">Who should we reach out to?</p>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="form-grid">
+                                <div>
+                                    <label for="contactName" class="block text-sm font-semibold text-gray-900 mb-3">
+                                        <i class="fas fa-user text-blue-500 mr-2"></i>
+                                        Full Name *
+                                    </label>
+                                    <input type="text" id="contactName" required
+                                           class="form-input w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           placeholder="Enter full name">
+                                    <div class="error-message text-red-600 text-sm mt-2" id="contactNameError"></div>
+                                </div>
+
+                                <div>
+                                    <label for="contactTitle" class="block text-sm font-semibold text-gray-900 mb-3">
+                                        <i class="fas fa-briefcase text-blue-500 mr-2"></i>
+                                        Job Title
+                                    </label>
+                                    <input type="text" id="contactTitle"
+                                           class="form-input w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           placeholder="e.g., CEO, Director, Manager">
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <div>
+                                    <label for="contactEmail" class="block text-sm font-semibold text-gray-900 mb-3">
+                                        <i class="fas fa-envelope text-blue-500 mr-2"></i>
+                                        Email Address *
+                                    </label>
+                                    <input type="email" id="contactEmail" required
+                                           class="form-input w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           placeholder="email@company.com">
+                                    <div class="error-message text-red-600 text-sm mt-2" id="contactEmailError"></div>
+                                </div>
+
+                                <div>
+                                    <label for="contactPhone" class="block text-sm font-semibold text-gray-900 mb-3">
+                                        <i class="fas fa-phone text-blue-500 mr-2"></i>
+                                        Phone Number *
+                                    </label>
+                                    <input type="tel" id="contactPhone" required
+                                           class="form-input w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           placeholder="+234 800 000 0000">
+                                    <div class="error-message text-red-600 text-sm mt-2" id="contactPhoneError"></div>
+                                </div>
+                            </div>
+
+                            <!-- Additional Notes -->
+                            <div>
+                                <label for="additionalNotes" class="block text-sm font-semibold text-gray-900 mb-3">
+                                    <i class="fas fa-sticky-note text-blue-500 mr-2"></i>
+                                    Additional Notes (Optional)
+                                </label>
+                                <textarea id="additionalNotes" rows="3"
+                                          class="form-input w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                          placeholder="Any additional information about this prospect..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between mt-8">
+                            <button type="button" onclick="prevStep(1)" 
+                                    class="px-6 py-3 text-gray-600 hover:text-gray-800 font-semibold rounded-xl border border-gray-300 hover:border-gray-400 transition-all duration-300 flex items-center space-x-2">
+                                <i class="fas fa-arrow-left"></i>
+                                <span>Back</span>
+                            </button>
+                            <button type="button" onclick="nextStep(3)" 
+                                    class="trust-badge px-8 py-3 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2">
+                                <span>Review & Generate</span>
+                                <i class="fas fa-check-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Review & Generate -->
+                    <div class="form-step" id="step3">
+                        <div class="text-center mb-8">
+                            <div class="bg-purple-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-check-double text-purple-600 text-2xl"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">Review & Generate</h2>
+                            <p class="text-gray-600">Confirm details and create your referral</p>
+                        </div>
+
+                        <!-- Summary Card -->
+                        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                <i class="fas fa-clipboard-check text-green-600 mr-2"></i>
+                                Referral Summary
+                            </h3>
+                            
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <!-- Company Details -->
+                                <div class="space-y-3">
+                                    <h4 class="font-semibold text-gray-900 text-sm uppercase tracking-wide">Company Details</h4>
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Company Name:</span>
+                                            <span class="font-semibold" id="summaryCompany">-</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Industry:</span>
+                                            <span class="font-semibold" id="summaryIndustry">-</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Est. Deal Value:</span>
+                                            <span class="font-semibold" id="summaryDealValue">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Contact Details -->
+                                <div class="space-y-3">
+                                    <h4 class="font-semibold text-gray-900 text-sm uppercase tracking-wide">Contact Details</h4>
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Contact Name:</span>
+                                            <span class="font-semibold" id="summaryContactName">-</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Title:</span>
+                                            <span class="font-semibold" id="summaryContactTitle">-</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Email:</span>
+                                            <span class="font-semibold" id="summaryContactEmail">-</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Phone:</span>
+                                            <span class="font-semibold" id="summaryContactPhone">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Commission Preview -->
+                            <div class="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-semibold text-blue-900">Potential Commission</p>
+                                        <p class="text-sm text-blue-700">You'll earn 5% of the successful deal</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-2xl font-bold text-blue-600" id="summaryCommission">₦0</p>
+                                        <p class="text-sm text-blue-600" id="summaryCommissionNote">on successful conversion</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 mb-6">
+                            <div class="flex items-start space-x-3">
+                                <i class="fas fa-lightbulb text-yellow-600 text-xl mt-1"></i>
+                                <div>
+                                    <h4 class="font-semibold text-yellow-900 mb-2">💡 How to Use Your Referral Code</h4>
+                                    <ul class="text-yellow-800 text-sm space-y-1">
+                                        <li>• Share the unique code directly with your contact</li>
+                                        <li>• Ask them to provide the code when they first contact Cryptware</li>
+                                        <li>• Our team will automatically attribute the lead to you</li>
+                                        <li>• Track progress and earnings in real-time on your dashboard</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between mt-8">
+                            <button type="button" onclick="prevStep(2)" 
+                                    class="px-6 py-3 text-gray-600 hover:text-gray-800 font-semibold rounded-xl border border-gray-300 hover:border-gray-400 transition-all duration-300 flex items-center space-x-2">
+                                <i class="fas fa-arrow-left"></i>
+                                <span>Back to Edit</span>
+                            </button>
+                            <button type="submit" id="generateButton"
+                                    class="trust-badge px-8 py-3 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fas fa-bolt"></i>
+                                <span class="button-text">Generate Referral Code</span>
+                                <div class="loading-spinner hidden">
+                                    <i class="fas fa-spinner"></i>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Success Modal -->
+            <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+                <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-auto transform transition-all duration-500 scale-95 opacity-0">
+                    <div class="text-center">
+                        <div class="success-checkmark w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-check text-green-600 text-3xl"></i>
+                        </div>
+                        
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2">Referral Created!</h3>
+                        <p class="text-gray-600 mb-6">Your referral code has been generated successfully</p>
+                        
+                        <!-- Referral Code Display -->
+                        <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white mb-6 pulse-glow">
+                            <p class="text-sm opacity-90 mb-2">Your Referral Code</p>
+                            <p class="text-3xl font-bold tracking-wider" id="generatedCode">CRYPT-XXXXXX</p>
+                            <p class="text-sm opacity-90 mt-2">Share this code with your contact</p>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="space-y-3">
+                            <button onclick="copyReferralCode()" 
+                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2">
+                                <i class="far fa-copy"></i>
+                                <span>Copy Referral Code</span>
+                            </button>
+                            <a href="partner-dashboard.html" 
+                               class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span>Go to Dashboard</span>
+                            </a>
+                            <button onclick="createAnotherReferral()" 
+                                    class="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-2">
+                                <i class="fas fa-plus"></i>
+                                <span>Create Another Referral</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Enhanced Footer -->
+    <footer class="bg-white/80 backdrop-blur-lg border-t border-gray-200/60 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center">
+                <p class="text-gray-500 text-sm">© 2024 Cryptware. All rights reserved. Secure partner referral system.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Imports -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script type="module" src="./js/config.js"></script>
+    <script type="module" src="./js/utils/toast.js"></script>
+    <script type="module" src="./js/auth-manager.js"></script>
+    <!-- <script type="module" src="./js/generate-referral.js"></script> -->
+
+    <script>
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check authentication
+            const isAuthenticated = await AuthManager.requireAuth('partner');
+            if (!isAuthenticated) return;
+    
+            // Initialize form data object
+            window.formData = {
+                company: {},
+                contact: {}
+            };
+    
+            // Load partner data
+            await loadPartnerData();
+            
+            // Show main content
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+    
+            // Initialize form handlers
+            initializeFormHandlers();
+            
+            // Add enter key support
+            setupEnterKeyNavigation();
+        });
+    
+        async function loadPartnerData() {
+            try {
+                const currentUser = AuthManager.getCurrentUser();
+                if (currentUser && currentUser.type === 'partner') {
+                    document.getElementById('partnerCompanyName').textContent = currentUser.data.company_name;
+                }
+            } catch (error) {
+                console.error('Error loading partner data:', error);
+            }
+        }
+    
+        function setupEnterKeyNavigation() {
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const activeStep = document.querySelector('.form-step.active');
+                    const inputs = activeStep.querySelectorAll('input, select, textarea');
+                    const focusedElement = document.activeElement;
+                    
+                    // Check if focused element is in current step
+                    if (Array.from(inputs).includes(focusedElement)) {
+                        e.preventDefault();
+                        
+                        // Find next input or proceed to next step
+                        const currentIndex = Array.from(inputs).indexOf(focusedElement);
+                        if (currentIndex < inputs.length - 1) {
+                            inputs[currentIndex + 1].focus();
+                        } else if (currentStep < 3) {
+                            nextStep(currentStep + 1);
+                        } else if (currentStep === 3) {
+                            document.getElementById('generateButton').click();
+                        }
+                    }
+                }
+            });
+        }
+    
+        function initializeFormHandlers() {
+            // Real-time validation
+            document.getElementById('prospectCompany').addEventListener('blur', validateCompany);
+            document.getElementById('companyIndustry').addEventListener('change', validateIndustry);
+            document.getElementById('contactName').addEventListener('blur', validateContactName);
+            document.getElementById('contactEmail').addEventListener('blur', validateEmail);
+            document.getElementById('contactPhone').addEventListener('blur', validatePhone);
+    
+            // Auto-save form data on input
+            document.getElementById('prospectCompany').addEventListener('input', () => saveStepData(1));
+            document.getElementById('companyIndustry').addEventListener('change', () => saveStepData(1));
+            document.getElementById('estimatedDealValue').addEventListener('input', () => saveStepData(1));
+            document.getElementById('contactName').addEventListener('input', () => saveStepData(2));
+            document.getElementById('contactTitle').addEventListener('input', () => saveStepData(2));
+            document.getElementById('contactEmail').addEventListener('input', () => saveStepData(2));
+            document.getElementById('contactPhone').addEventListener('input', () => saveStepData(2));
+            document.getElementById('additionalNotes').addEventListener('input', () => saveStepData(2));
+    
+            // Form submission
+            document.getElementById('referralForm').addEventListener('submit', handleFormSubmit);
+        }
+    
+        // Step navigation
+        let currentStep = 1;
+    
+        function nextStep(step) {
+            if (!validateStep(currentStep)) {
+                shakeStep(currentStep);
+                return;
+            }
+    
+            // Save step data
+            saveStepData(currentStep);
+    
+            // Animate step transition
+            animateStepTransition(currentStep, step);
+            
+            currentStep = step;
+    
+            // Update summary if going to step 3
+            if (step === 3) {
+                updateSummary();
+            }
+        }
+    
+        function prevStep(step) {
+            animateStepTransition(currentStep, step, true);
+            currentStep = step;
+        }
+    
+        function animateStepTransition(fromStep, toStep, isBackward = false) {
+            const fromElement = document.getElementById(`step${fromStep}`);
+            const toElement = document.getElementById(`step${toStep}`);
+    
+            // Add exit animation
+            fromElement.style.transform = isBackward ? 'translateX(20px)' : 'translateX(-20px)';
+            fromElement.style.opacity = '0';
+    
+            setTimeout(() => {
+                fromElement.classList.remove('active');
+                toElement.classList.add('active');
+                
+                // Add entry animation
+                toElement.style.transform = 'translateX(0)';
+                toElement.style.opacity = '1';
+    
+                // Update progress indicators
+                updateProgressIndicators(fromStep, toStep, isBackward);
+    
+                // Focus first input in new step
+                const firstInput = toElement.querySelector('input, select, textarea');
+                if (firstInput) firstInput.focus();
+            }, 300);
+        }
+    
+        function updateProgressIndicators(fromStep, toStep, isBackward = false) {
+            const progressBar = document.getElementById('progressBar');
+            const indicators = document.querySelectorAll('.step-indicator');
+    
+            if (isBackward) {
+                // Reset steps after current step
+                indicators.forEach((indicator, index) => {
+                    if (index + 1 > toStep) {
+                        indicator.classList.remove('active', 'completed');
+                    }
+                });
+            } else {
+                // Mark current step as completed and next as active
+                indicators[fromStep - 1].classList.remove('active');
+                indicators[fromStep - 1].classList.add('completed');
+                indicators[toStep - 1].classList.add('active');
+            }
+    
+            // Update progress bar with smooth animation
+            const progress = ((toStep - 1) / 2) * 100;
+            progressBar.style.transition = 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+            progressBar.style.width = `${progress}%`;
+        }
+    
+        function saveStepData(step) {
+            // Ensure formData exists
+            if (!window.formData) {
+                window.formData = {
+                    company: {},
+                    contact: {}
+                };
+            }
+    
+            switch (step) {
+                case 1:
+                    window.formData.company = {
+                        name: document.getElementById('prospectCompany').value.trim(),
+                        industry: document.getElementById('companyIndustry').value,
+                        estimatedDealValue: parseFloat(document.getElementById('estimatedDealValue').value) || 0
+                    };
+                    console.log('💾 Saved step 1 data:', window.formData.company);
+                    break;
+                case 2:
+                    window.formData.contact = {
+                        name: document.getElementById('contactName').value.trim(),
+                        title: document.getElementById('contactTitle').value.trim(),
+                        email: document.getElementById('contactEmail').value.trim(),
+                        phone: document.getElementById('contactPhone').value.trim(),
+                        notes: document.getElementById('additionalNotes').value.trim()
+                    };
+                    console.log('💾 Saved step 2 data:', window.formData.contact);
+                    break;
+            }
+        }
+    
+        function updateCommissionPreview() {
+            const dealValue = parseFloat(document.getElementById('estimatedDealValue').value) || 0;
+            const commission = dealValue * 0.05;
+            const preview = document.getElementById('commissionPreview');
+    
+            if (dealValue > 0) {
+                document.getElementById('previewCommission').textContent = `₦${commission.toLocaleString()}`;
+                document.getElementById('previewDealValue').textContent = `on ₦${dealValue.toLocaleString()} deal`;
+                preview.classList.remove('hidden');
+                
+                // Add pulse animation for new values
+                preview.style.animation = 'pulseGlow 1s ease-in-out';
+                setTimeout(() => {
+                    preview.style.animation = '';
+                }, 1000);
+            } else {
+                preview.classList.add('hidden');
+            }
+        }
+    
+        function updateSummary() {
+            // Ensure formData exists and has data
+            if (!window.formData || !window.formData.company || !window.formData.contact) {
+                console.error('❌ Form data missing for summary:', window.formData);
+                Toast.error('Form data incomplete. Please go back and fill all fields.');
+                return;
+            }
+    
+            console.log('📊 Updating summary with:', window.formData);
+    
+            // Company details
+            document.getElementById('summaryCompany').textContent = window.formData.company.name || 'Not provided';
+            
+            const industrySelect = document.getElementById('companyIndustry');
+            const industryText = industrySelect.options[industrySelect.selectedIndex].text;
+            document.getElementById('summaryIndustry').textContent = industryText || 'Not specified';
+            
+            const dealValue = window.formData.company.estimatedDealValue || 0;
+            document.getElementById('summaryDealValue').textContent = dealValue > 0 ? 
+                `₦${dealValue.toLocaleString()}` : 'Not specified';
+    
+            // Contact details
+            document.getElementById('summaryContactName').textContent = window.formData.contact.name || 'Not provided';
+            document.getElementById('summaryContactTitle').textContent = window.formData.contact.title || 'Not specified';
+            document.getElementById('summaryContactEmail').textContent = window.formData.contact.email || 'Not provided';
+            document.getElementById('summaryContactPhone').textContent = window.formData.contact.phone || 'Not provided';
+    
+            // Commission
+            const commission = dealValue * 0.05;
+            document.getElementById('summaryCommission').textContent = `₦${commission.toLocaleString()}`;
+            document.getElementById('summaryCommissionNote').textContent = dealValue > 0 ? 
+                `on ₦${dealValue.toLocaleString()} deal` : 'when deal value is confirmed';
+        }
+    
+        // Validation functions
+        function validateStep(step) {
+            switch (step) {
+                case 1:
+                    return validateCompany() && validateIndustry();
+                case 2:
+                    return validateContactName() && validateEmail() && validatePhone();
+                default:
+                    return true;
+            }
+        }
+    
+        function validateCompany() {
+            const company = document.getElementById('prospectCompany');
+            const error = document.getElementById('companyError');
+            
+            if (!company.value.trim()) {
+                showError(company, error, 'Company name is required');
+                return false;
+            }
+            
+            if (company.value.trim().length < 2) {
+                showError(company, error, 'Company name must be at least 2 characters');
+                return false;
+            }
+            
+            clearError(company, error);
+            return true;
+        }
+    
+        function validateIndustry() {
+            const industry = document.getElementById('companyIndustry');
+            const error = document.getElementById('industryError');
+            
+            if (!industry.value) {
+                showError(industry, error, 'Please select an industry');
+                return false;
+            }
+            
+            clearError(industry, error);
+            return true;
+        }
+    
+        function validateContactName() {
+            const name = document.getElementById('contactName');
+            const error = document.getElementById('contactNameError');
+            
+            if (!name.value.trim()) {
+                showError(name, error, 'Contact name is required');
+                return false;
+            }
+            
+            if (name.value.trim().length < 2) {
+                showError(name, error, 'Contact name must be at least 2 characters');
+                return false;
+            }
+            
+            clearError(name, error);
+            return true;
+        }
+    
+        function validateEmail() {
+            const email = document.getElementById('contactEmail');
+            const error = document.getElementById('contactEmailError');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            if (!email.value.trim()) {
+                showError(email, error, 'Email address is required');
+                return false;
+            }
+            
+            if (!emailRegex.test(email.value.trim())) {
+                showError(email, error, 'Please enter a valid email address');
+                return false;
+            }
+            
+            clearError(email, error);
+            return true;
+        }
+    
+        function validatePhone() {
+            const phone = document.getElementById('contactPhone');
+            const error = document.getElementById('contactPhoneError');
+            const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+            
+            if (!phone.value.trim()) {
+                showError(phone, error, 'Phone number is required');
+                return false;
+            }
+            
+            // Remove spaces and special characters for validation
+            const cleanPhone = phone.value.replace(/[\s\-\(\)]/g, '');
+            
+            if (!phoneRegex.test(cleanPhone)) {
+                showError(phone, error, 'Please enter a valid phone number');
+                return false;
+            }
+            
+            clearError(phone, error);
+            return true;
+        }
+    
+        function showError(input, errorElement, message) {
+            input.classList.add('error');
+            errorElement.textContent = message;
+            errorElement.classList.add('show');
+            
+            // Add shake animation
+            input.style.animation = 'shake 0.5s ease-in-out';
+            setTimeout(() => {
+                input.style.animation = '';
+            }, 500);
+        }
+    
+        function clearError(input, errorElement) {
+            input.classList.remove('error');
+            errorElement.classList.remove('show');
+            errorElement.textContent = '';
+        }
+    
+        function shakeStep(step) {
+            const stepElement = document.getElementById(`step${step}`);
+            stepElement.style.animation = 'shake 0.5s ease-in-out';
+            setTimeout(() => {
+                stepElement.style.animation = '';
+            }, 500);
+        }
+    
+        // Form Submission Handler
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            console.log('🚀 Form submission started');
+            console.log('📦 Current formData:', window.formData);
+    
+            // Validate all steps before submission
+            if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+                Toast.error('Please fix validation errors before submitting');
+                return;
+            }
+    
+            // Ensure form data exists
+            if (!window.formData || !window.formData.company || !window.formData.contact) {
+                console.error('❌ Form data missing on submission:', window.formData);
+                Toast.error('Form data incomplete. Please fill all required fields.');
+                return;
+            }
+    
+            const submitButton = document.getElementById('generateButton');
+            const buttonText = submitButton.querySelector('.button-text');
+            const spinner = submitButton.querySelector('.loading-spinner');
+    
+            try {
+                // Show loading state
+                submitButton.disabled = true;
+                buttonText.textContent = 'Generating...';
+                spinner.classList.remove('hidden');
+    
+                // Prepare request data with fallbacks
+                const requestData = {
+                    prospect_company_name: window.formData.company.name || '',
+                    contact_name: window.formData.contact.name || '',
+                    email: window.formData.contact.email || '',
+                    phone: window.formData.contact.phone || '',
+                    industry: window.formData.company.industry || '',
+                    estimated_deal_value: window.formData.company.estimatedDealValue || null
+                };
+    
+                console.log('📤 Creating referral with data:', requestData);
+    
+                // API call
+                const response = await apiClient.post(CONFIG.API.ENDPOINTS.REFERRALS.CREATE, requestData);
+    
+                if (response.data.success) {
+                    showSuccessModal(response.data.data);
+                    trackReferralCreation(response.data.data.referral.referral_code);
+                } else {
+                    throw new Error(response.data.message || 'Failed to create referral');
+                }
+    
+            } catch (error) {
+                console.error('❌ Referral creation error:', error);
+                
+                let errorMessage = 'Failed to create referral. Please try again.';
+                if (error.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+    
+                Toast.error(errorMessage);
+                
+                // Re-enable button
+                submitButton.disabled = false;
+                buttonText.textContent = 'Generate Referral Code';
+                spinner.classList.add('hidden');
+            }
+        }
+    
+        function showSuccessModal(data) {
+            const modal = document.getElementById('successModal');
+            const modalContent = modal.querySelector('.bg-white');
+            
+            // Set generated code
+            document.getElementById('generatedCode').textContent = data.referral.referral_code;
+            
+            // Store referral data for copy function
+            window.generatedReferral = data.referral;
+    
+            // Show modal with animation
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+    
+            // Track successful creation
+            console.log('🎉 Referral created successfully:', {
+                code: data.referral.referral_code,
+                company: data.referral.prospect_company_name,
+                timestamp: new Date().toISOString()
+            });
+        }
+    
+        function trackReferralCreation(referralCode) {
+            // Analytics tracking
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'generate_referral', {
+                    'event_category': 'referral',
+                    'event_label': referralCode
+                });
+            }
+        }
+    
+        // Success Modal Actions
+        function copyReferralCode() {
+            if (!window.generatedReferral) {
+                Toast.error('No referral code available to copy');
+                return;
+            }
+    
+            const code = window.generatedReferral.referral_code;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                Toast.success('Referral code copied to clipboard!');
+                
+                // Visual feedback
+                const codeElement = document.getElementById('generatedCode');
+                codeElement.style.transform = 'scale(1.1)';
+                codeElement.style.color = '#10b981';
+                
+                setTimeout(() => {
+                    codeElement.style.transform = 'scale(1)';
+                    codeElement.style.color = 'white';
+                }, 300);
+            }).catch(() => {
+                Toast.error('Failed to copy referral code');
+            });
+        }
+    
+        function createAnotherReferral() {
+            closeSuccessModal();
+            resetForm();
+        }
+    
+        function closeSuccessModal() {
+            const modal = document.getElementById('successModal');
+            const modalContent = modal.querySelector('.bg-white');
+            
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+    
+        function resetForm() {
+            // Reset form fields
+            document.getElementById('referralForm').reset();
+            
+            // Reset form data
+            window.formData = {
+                company: {},
+                contact: {}
+            };
+            
+            // Reset to step 1
+            document.querySelectorAll('.form-step').forEach(step => {
+                step.classList.remove('active');
+                step.style.opacity = '0';
+                step.style.transform = 'translateX(20px)';
+            });
+            
+            document.getElementById('step1').classList.add('active');
+            document.getElementById('step1').style.opacity = '1';
+            document.getElementById('step1').style.transform = 'translateX(0)';
+            
+            // Reset progress
+            currentStep = 1;
+            updateProgressIndicators(3, 1, true);
+            
+            // Clear errors
+            document.querySelectorAll('.error-message').forEach(error => {
+                error.classList.remove('show');
+                error.textContent = '';
+            });
+            
+            document.querySelectorAll('.form-input').forEach(input => {
+                input.classList.remove('error');
+            });
+            
+            // Hide commission preview
+            document.getElementById('commissionPreview').classList.add('hidden');
+            
+            // Focus first field
+            document.getElementById('prospectCompany').focus();
+            
+            Toast.info('Form reset. Ready to create another referral!');
+        }
+    
+        // Add missing CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                75% { transform: translateX(5px); }
+            }
+            
+            .skeleton {
+                background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                background-size: 200% 100%;
+                animation: loading 1.5s infinite;
+            }
+            
+            @keyframes loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+
+    </body>
+</html>
