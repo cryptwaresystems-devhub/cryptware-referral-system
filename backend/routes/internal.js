@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateInternal } from '../middleware/auth.js';
-import { supabase } from '../config/supabase.js';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { validateQueryParams } from '../middleware/validation.js';
 
 const router = express.Router();
@@ -10,11 +10,11 @@ const router = express.Router();
 // @access  Private (Internal)
 router.get('/dashboard', authenticateInternal, async (req, res) => {
   try {
-    const { period = 'month' } = req.query; // month, quarter, year
+    const { period = 'month' } = req.query;
 
     console.log(`📊 Generating executive dashboard for period: ${period}`);
 
-    // Get comprehensive dashboard data in parallel
+    // Get comprehensive dashboard data in parallel - USE ADMIN CLIENT
     const [
       referralsResponse,
       paymentsResponse,
@@ -22,22 +22,22 @@ router.get('/dashboard', authenticateInternal, async (req, res) => {
       leadsResponse
     ] = await Promise.all([
       // Referral metrics
-      supabase
+      supabaseAdmin
         .from('referrals')
         .select('status, created_at, total_deal_value, total_commission_earned'),
       
       // Payment metrics
-      supabase
+      supabaseAdmin
         .from('client_payments')
         .select('amount, commission_calculated, payment_date, status'),
       
       // Partner metrics
-      supabase
+      supabaseAdmin
         .from('partners')
         .select('id, company_name, is_active, bank_verified, total_commissions_earned, created_at'),
       
-      // Lead metrics
-      supabase
+      // Lead metrics - USE ADMIN CLIENT
+      supabaseAdmin
         .from('leads')
         .select('status, source, created_at, estimated_value')
     ]);
@@ -55,6 +55,8 @@ router.get('/dashboard', authenticateInternal, async (req, res) => {
     const partners = partnersResponse.data || [];
     const leads = leadsResponse.data || [];
 
+    console.log(`📈 Dashboard stats - Leads: ${leads.length}, Referrals: ${referrals.length}`);
+
     // Calculate key metrics
     const confirmedPayments = payments.filter(p => p.status === 'confirmed');
     
@@ -66,11 +68,10 @@ router.get('/dashboard', authenticateInternal, async (req, res) => {
         average_deal_size: referrals.length > 0 ? referrals.reduce((sum, r) => sum + (r.total_deal_value || 0), 0) / referrals.length : 0
       },
       performance: {
-        total_referrals: referrals.length,
-        active_referrals: referrals.filter(r => !['won', 'fully_paid', 'lost'].includes(r.status)).length,
-        conversion_rate: referrals.length > 0 ? (referrals.filter(r => ['won', 'fully_paid'].includes(r.status)).length / referrals.length) * 100 : 0,
         total_leads: leads.length,
-        lead_conversion_rate: leads.length > 0 ? (leads.filter(l => l.status === 'converted').length / leads.length) * 100 : 0
+        active_referrals: referrals.filter(r => !['won', 'fully_paid', 'lost'].includes(r.status)).length,
+        converted_leads: leads.filter(l => l.status === 'converted').length,
+        conversion_rate: leads.length > 0 ? (leads.filter(l => l.status === 'converted').length / leads.length) * 100 : 0
       },
       partners: {
         total_partners: partners.length,
@@ -266,8 +267,8 @@ router.get('/partners', authenticateInternal, async (req, res) => {
 
     console.log(`📋 Fetching partners directory`, { status, performance, search });
 
-    // Build base query
-    let query = supabase
+    // Build base query - USE ADMIN CLIENT
+    let query = supabaseAdmin
       .from('partners')
       .select(`
         *,
@@ -459,6 +460,37 @@ router.patch('/partners/:id/status', authenticateInternal, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error while updating partner status'
+    });
+  }
+});
+
+// Add this debug endpoint to internal.js
+router.get('/debug/leads', authenticateInternal, async (req, res) => {
+  try {
+    const { data: leads, error } = await supabaseAdmin
+      .from('leads')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error fetching leads: ' + error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        total_leads: leads.length,
+        leads: leads
+      }
+    });
+  } catch (error) {
+    console.error('Debug leads error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug error'
     });
   }
 });

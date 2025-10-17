@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Lead | Cryptware Internal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script type="module" src="./js/config.js"></script>
+    <!-- <script type="module" src="./js/internal-auth.js"></script> -->
+    <script type="module" src="./js/utils/toast.js"></script>
+    <!-- <script src="./js/internal-add-lead.js"></script> -->
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        .form-step {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            transform: translateX(20px);
+            display: none;
+        }
+        .form-step.active {
+            opacity: 1;
+            transform: translateX(0);
+            display: block;
+        }
+        .source-option {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid #e5e7eb;
+        }
+        .source-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .source-option.selected {
+            border-color: var(--primary-blue);
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.15);
+        }
+        #autoFillSection {
+            transition: all 0.5s ease;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+        }
+        #autoFillSection.show {
+            max-height: 200px;
+            opacity: 1;
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .input-error {
+            border-color: var(--danger) !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+        }
+        .error-message {
+            color: var(--danger);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .progress-line {
+            transition: all 0.4s ease;
+        }
+        .progress-dot {
+            transition: all 0.3s ease;
+        }
+        
+        .floating-label {
+            position: relative;
+        }
+        .floating-label input:focus ~ label,
+        .floating-label input:not(:placeholder-shown) ~ label,
+        .floating-label select:focus ~ label,
+        .floating-label select:not([value=""]):valid ~ label {
+            top: -8px;
+            left: 12px;
+            font-size: 0.75rem;
+            color: var(--primary-blue);
+            background: white;
+            padding: 0 4px;
+            z-index: 10;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark));
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-stack {
+                flex-direction: column;
+            }
+            .mobile-text-center {
+                text-align: center;
+            }
+            .mobile-full {
+                width: 100%;
+            }
+            .mobile-space-y-2 > * + * {
+                margin-top: 0.5rem;
+            }
+            .form-step {
+                padding: 1rem !important;
+            }
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.15);
+        }
+
+        .success-check {
+            animation: bounceIn 0.6s ease;
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-white to-blue-100 min-h-screen font-['Inter']">
+    <!-- Enhanced Navigation -->
+    <nav class="glass-card border-b shadow-sm sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center mobile-stack">
+                <div class="flex items-center space-x-3 mobile-stack mobile-text-center mobile-full">
+                    <a href="internal-dashboard.html" class="flex items-center text-blue-600 hover:text-blue-700 font-semibold text-sm sm:text-base transition-all duration-300 hover:scale-105">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        <span class="hidden sm:inline">Back to Dashboard</span>
+                        <span class="sm:hidden">Back</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-3 mobile-stack mobile-text-center mobile-full justify-end">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
+                        <i class="fas fa-plus mr-1"></i> New Lead
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-blue-600 text-sm"></i>
+                        </div>
+                        <span class="text-sm text-gray-700 font-medium truncate max-w-[120px] sm:max-w-none" id="currentUserName">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <!-- Progress Indicator -->
+        <div class="glass-card rounded-2xl p-6 mb-6 sm:mb-8 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-road mr-2 text-blue-500"></i>
+                    Create New Lead
+                </h3>
+                <span class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-sm font-medium">
+                    Step <span id="currentStepNumber">1</span> of 3
+                </span>
+            </div>
+            
+            <div class="flex items-center justify-between relative">
+                <div class="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 -translate-y-1/2 -z-10"></div>
+                <div class="absolute top-1/2 left-0 h-1 bg-blue-600 -translate-y-1/2 -z-10 progress-line" id="progressLine" style="width: 33.33%"></div>
+                
+                <div class="flex justify-between w-full">
+                    <div class="progress-dot flex flex-col items-center">
+                        <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold shadow-lg">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <span class="text-xs font-medium text-gray-700 mt-2">Source</span>
+                    </div>
+                    
+                    <div class="progress-dot flex flex-col items-center">
+                        <div class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-semibold">
+                            2
+                        </div>
+                        <span class="text-xs font-medium text-gray-500 mt-2">Details</span>
+                    </div>
+                    
+                    <div class="progress-dot flex flex-col items-center">
+                        <div class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-semibold">
+                            3
+                        </div>
+                        <span class="text-xs font-medium text-gray-500 mt-2">Review</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Container -->
+        <div class="glass-card rounded-2xl shadow-xl overflow-hidden transform transition-all duration-300 hover:shadow-2xl">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 px-6 py-5 sm:px-8 sm:py-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -translate-y-16 translate-x-16"></div>
+                <div class="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full translate-y-12 -translate-x-12"></div>
+                
+                <div class="relative z-10">
+                    <h1 class="text-xl sm:text-2xl font-bold text-white mb-2 text-center sm:text-left">
+                        <i class="fas fa-user-plus mr-3"></i>Add New Lead
+                    </h1>
+                    <p class="text-blue-100 text-sm sm:text-base text-center sm:text-left">
+                        Track every prospect with complete transparency and automated commission tracking
+                    </p>
+                </div>
+            </div>
+
+            <!-- Multi-step Form -->
+            <form id="addLeadForm" class="p-6 sm:p-8">
+                <!-- Step 1: Lead Source & Referral Code -->
+                <div class="form-step active" id="step1">
+                    <div class="text-center mb-8">
+                        <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <i class="fas fa-source text-blue-600 text-2xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-3">Lead Source</h2>
+                        <p class="text-gray-600 text-lg">Where did this lead come from?</p>
+                    </div>
+
+                    <!-- Source Selection -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="source-option group rounded-2xl p-6 text-center border-2" onclick="selectSource('partner')">
+                            <div class="bg-gradient-to-br from-blue-100 to-blue-200 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <i class="fas fa-handshake text-blue-600 text-3xl"></i>
+                            </div>
+                            <h3 class="font-bold text-gray-900 text-lg mb-2">Partner Referral</h3>
+                            <p class="text-gray-600 text-sm mb-4">Use referral code to auto-fill partner details and track commissions</p>
+                            <div class="bg-blue-50 rounded-lg p-3">
+                                <ul class="text-xs text-blue-700 text-left space-y-1">
+                                    <li class="flex items-center">
+                                        <i class="fas fa-check-circle mr-2 text-green-500"></i>
+                                        Auto-fill company details
+                                    </li>
+                                    <li class="flex items-center">
+                                        <i class="fas fa-percentage mr-2 text-green-500"></i>
+                                        5% commission tracking
+                                    </li>
+                                    <li class="flex items-center">
+                                        <i class="fas fa-bolt mr-2 text-green-500"></i>
+                                        Instant partner attribution
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="source-option group rounded-2xl p-6 text-center border-2" onclick="selectSource('internal')">
+                            <div class="bg-gradient-to-br from-gray-100 to-gray-200 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <i class="fas fa-building text-gray-600 text-3xl"></i>
+                            </div>
+                            <h3 class="font-bold text-gray-900 text-lg mb-2">Internal Direct</h3>
+                            <p class="text-gray-600 text-sm mb-4">Manual entry for leads generated through direct sales efforts</p>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <ul class="text-xs text-gray-700 text-left space-y-1">
+                                    <li class="flex items-center">
+                                        <i class="fas fa-edit mr-2 text-blue-500"></i>
+                                        Manual data entry
+                                    </li>
+                                    <li class="flex items-center">
+                                        <i class="fas fa-chart-line mr-2 text-blue-500"></i>
+                                        Direct sales tracking
+                                    </li>
+                                    <li class="flex items-center">
+                                        <i class="fas fa-users mr-2 text-blue-500"></i>
+                                        Team performance metrics
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Referral Code Section -->
+                    <div id="referralCodeSection" class="hidden">
+                        <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-6">
+                            <div class="flex items-start">
+                                <i class="fas fa-info-circle text-blue-500 text-xl mt-1 mr-3"></i>
+                                <div>
+                                    <h4 class="font-semibold text-blue-900 mb-1">Partner Referral Required</h4>
+                                    <p class="text-blue-700 text-sm">Enter the referral code provided by the partner to automatically link this lead and enable commission tracking.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="floating-label">
+                                <input type="text" id="referralCodeInput"
+                                       class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-lg font-mono"
+                                       placeholder=" ">
+                                <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                    <i class="fas fa-qrcode mr-2"></i>Referral Code (e.g., CRYPT-ABC123)
+                                </label>
+                            </div>
+                            
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <!-- Change this line in your HTML -->
+<button type="button" onclick="fetchReferralDetails(this)" 
+class="btn-primary text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 flex items-center justify-center flex-1 group">
+<i class="fas fa-search mr-3 group-hover:scale-110 transition-transform"></i>
+<span class="btn-text">Verify Referral Code</span>
+</button>
+                                
+                                <button type="button" onclick="clearReferralCode()"
+                                        class="bg-gray-100 text-gray-700 font-semibold py-4 px-6 rounded-xl hover:bg-gray-200 transition-all duration-300 flex items-center justify-center">
+                                    <i class="fas fa-times mr-2"></i>
+                                    Clear
+                                </button>
+                            </div>
+                            
+                            <div id="referralCodeError" class="error-message hidden bg-red-50 border border-red-200 rounded-lg p-3">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <span class="error-text"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto-fill Section -->
+                    <div id="autoFillSection" class="mt-6 rounded-2xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-6 transform transition-all duration-500">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-bold text-green-900 text-lg flex items-center">
+                                <i class="fas fa-check-circle mr-3 text-green-500 success-check"></i>
+                                Referral Verified Successfully!
+                            </h4>
+                            <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                <i class="fas fa-bolt mr-1"></i>Auto-filled
+                            </span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <div class="text-green-700 font-medium mb-1">Company</div>
+                                <div class="font-semibold text-gray-900" id="autoFillCompany">-</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <div class="text-green-700 font-medium mb-1">Contact</div>
+                                <div class="font-semibold text-gray-900" id="autoFillContact">-</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <div class="text-green-700 font-medium mb-1">Industry</div>
+                                <div class="font-semibold text-gray-900" id="autoFillIndustry">-</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3 shadow-sm">
+                                <div class="text-green-700 font-medium mb-1">Partner</div>
+                                <div class="font-semibold text-gray-900" id="autoFillPartner">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end mt-8 pt-6 border-t border-gray-200">
+                        <button type="button" onclick="validateStep1()" 
+                                class="btn-primary text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 flex items-center group">
+                            Continue to Details
+                            <i class="fas fa-arrow-right ml-3 group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Contact & ERP Information -->
+                <div class="form-step hidden" id="step2">
+                    <div class="text-center mb-8">
+                        <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <i class="fas fa-user-tie text-green-600 text-2xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-3">Contact & ERP Details</h2>
+                        <p class="text-gray-600 text-lg">Complete the lead information</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Contact Details -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="floating-label">
+                                <input type="text" id="contactName" required
+                                       class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                                       placeholder=" ">
+                                <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                    <i class="fas fa-user mr-2"></i>Contact Name *
+                                </label>
+                                <div id="contactNameError" class="error-message hidden"></div>
+                            </div>
+                            <div class="floating-label">
+                                <input type="text" id="contactTitle"
+                                       class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                                       placeholder=" ">
+                                <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                    <i class="fas fa-briefcase mr-2"></i>Job Title
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="floating-label">
+                                <input type="email" id="contactEmail" required
+                                       class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                                       placeholder=" ">
+                                <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                    <i class="fas fa-envelope mr-2"></i>Email Address *
+                                </label>
+                                <div id="contactEmailError" class="error-message hidden"></div>
+                            </div>
+                            <div class="floating-label">
+                                <input type="tel" id="contactPhone" required
+                                       class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                                       placeholder=" ">
+                                <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                    <i class="fas fa-phone mr-2"></i>Phone Number *
+                                </label>
+                                <div id="contactPhoneError" class="error-message hidden"></div>
+                            </div>
+                        </div>
+
+                        <!-- ERP Information -->
+                        <div class="border-t pt-6 mt-6">
+                            <h4 class="font-semibold text-gray-900 mb-4 text-lg flex items-center">
+                                <i class="fas fa-laptop-code mr-2 text-purple-500"></i>
+                                ERP System Information
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="floating-label">
+                                    <select id="erpSystem" class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 appearance-none bg-white">
+                                        <option value=""></option>
+                                        <option value="sap">SAP</option>
+                                        <option value="oracle">Oracle</option>
+                                        <option value="microsoft-dynamics">Microsoft Dynamics</option>
+                                        <option value="quickbooks">QuickBooks</option>
+                                        <option value="sage">Sage</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                    <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                        <i class="fas fa-cogs mr-2"></i>Current ERP System
+                                    </label>
+                                    <i class="fas fa-chevron-down absolute right-4 top-4 text-gray-400 pointer-events-none"></i>
+                                </div>
+                                <div class="floating-label">
+                                    <select id="implementationTimeline" class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 appearance-none bg-white">
+                                        <option value=""></option>
+                                        <option value="immediate">Immediate (0-30 days)</option>
+                                        <option value="short-term">Short-term (1-3 months)</option>
+                                        <option value="medium-term">Medium-term (3-6 months)</option>
+                                        <option value="long-term">Long-term (6+ months)</option>
+                                    </select>
+                                    <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                        <i class="fas fa-calendar mr-2"></i>Implementation Timeline
+                                    </label>
+                                    <i class="fas fa-chevron-down absolute right-4 top-4 text-gray-400 pointer-events-none"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between mt-8 pt-6 border-t border-gray-200">
+                        <button type="button" onclick="prevStep(1)" class="text-gray-600 hover:text-gray-800 font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center group">
+                            <i class="fas fa-arrow-left mr-3 group-hover:-translate-x-1 transition-transform"></i>
+                            Back to Source
+                        </button>
+                        <button type="button" onclick="validateStep2()" class="btn-primary text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 flex items-center group">
+                            Continue to Review
+                            <i class="fas fa-arrow-right ml-3 group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Financial Details & Summary -->
+                <div class="form-step hidden" id="step3">
+                    <div class="text-center mb-8">
+                        <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <i class="fas fa-chart-line text-purple-600 text-2xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-3">Review & Complete</h2>
+                        <p class="text-gray-600 text-lg">Review the lead information and add financial details</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Financial Details -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="floating-label">
+                                <input type="number" id="estimatedValue"
+                                       class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                                       placeholder=" " min="0" step="1000" oninput="calculateCommission()">
+                                <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                    <i class="fas fa-money-bill-wave mr-2"></i>Estimated Deal Value (₦)
+                                </label>
+                            </div>
+                            <div class="floating-label">
+                                <input type="number" id="initialPayment"
+                                       class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                                       placeholder=" " min="0" step="1000">
+                                <label class="absolute left-4 top-4 text-gray-500 transition-all duration-300 pointer-events-none">
+                                    <i class="fas fa-credit-card mr-2"></i>Initial Payment (₦)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Commission Preview -->
+                        <div id="commissionPreview" class="hidden">
+                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border-2 border-blue-200">
+                                <h4 class="font-bold text-blue-900 mb-4 text-lg flex items-center">
+                                    <i class="fas fa-percentage mr-3"></i>
+                                    Commission Calculation
+                                </h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                                    <div class="bg-white rounded-xl p-4 shadow-sm">
+                                        <div class="text-blue-700 text-sm font-medium mb-2">Deal Value</div>
+                                        <div class="text-2xl font-bold text-gray-900" id="previewDealValue">₦0</div>
+                                    </div>
+                                    <div class="bg-green-50 rounded-xl p-4 shadow-sm border border-green-200">
+                                        <div class="text-green-700 text-sm font-medium mb-2">Partner Commission (5%)</div>
+                                        <div class="text-2xl font-bold text-green-600" id="previewCommission">₦0</div>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-xl p-4 shadow-sm">
+                                        <div class="text-blue-700 text-sm font-medium mb-2">Company Earnings (95%)</div>
+                                        <div class="text-2xl font-bold text-blue-600" id="previewCompanyEarnings">₦0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Notes -->
+                        <div>
+                            <label for="notes" class="block text-sm font-medium text-gray-700 mb-3">
+                                <i class="fas fa-sticky-note mr-2 text-gray-500"></i>
+                                Additional Notes
+                            </label>
+                            <textarea id="notes" rows="4"
+                                      class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 resize-none"
+                                      placeholder="Any important details about this lead..."></textarea>
+                        </div>
+
+                        <!-- Summary Section -->
+                        <div class="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-6 border-2 border-gray-200">
+                            <h4 class="font-bold text-gray-900 mb-4 text-lg flex items-center">
+                                <i class="fas fa-clipboard-check mr-3"></i>
+                                Lead Summary
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div class="space-y-3">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Source:</span>
+                                        <span class="font-semibold" id="summarySource">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Company:</span>
+                                        <span class="font-semibold" id="summaryCompany">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Contact:</span>
+                                        <span class="font-semibold" id="summaryContact">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">ERP System:</span>
+                                        <span class="font-semibold" id="summaryERP">-</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Timeline:</span>
+                                        <span class="font-semibold" id="summaryTimeline">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Deal Value:</span>
+                                        <span class="font-semibold" id="summaryDealValue">₦0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Potential Commission:</span>
+                                        <span class="font-semibold text-green-600" id="summaryCommission">₦0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Assigned To:</span>
+                                        <span class="font-semibold" id="summaryAssignedTo">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between mt-8 pt-6 border-t border-gray-200">
+                        <button type="button" onclick="prevStep(2)" class="text-gray-600 hover:text-gray-800 font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center group">
+                            <i class="fas fa-arrow-left mr-3 group-hover:-translate-x-1 transition-transform"></i>
+                            Back to Details
+                        </button>
+                        <button type="submit" id="submitLeadBtn" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 flex items-center group transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-check mr-3 group-hover:scale-110 transition-transform"></i>
+                            <span class="btn-text">Create Lead</span>
+                            <div class="loading-spinner hidden ml-2">
+                                <i class="fas fa-spinner"></i>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Help Section -->
+        <div class="glass-card rounded-2xl p-6 mt-6 shadow-lg">
+            <div class="flex items-center justify-between">
+                <h3 class="font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-question-circle mr-2 text-blue-500"></i>
+                    Need Help?
+                </h3>
+                <button onclick="toggleHelp()" class="text-blue-600 hover:text-blue-700 transition-colors">
+                    <i class="fas fa-chevron-down" id="helpIcon"></i>
+                </button>
+            </div>
+            <div id="helpContent" class="mt-4 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-blue-900 mb-2">Partner Referrals</h4>
+                        <p class="text-blue-700">Use referral codes to automatically track partner commissions and attribution.</p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-green-900 mb-2">Commission Tracking</h4>
+                        <p class="text-green-700">Partners earn 5% commission on successful deals. This is calculated automatically.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+   <script src="./js/internal-add-lead.js"></script>
+</body>
+</html>

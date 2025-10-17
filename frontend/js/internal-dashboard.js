@@ -245,8 +245,9 @@ class InternalDashboard {
         try {
             const response = await this.apiCall('GET', '/leads?limit=100');
             if (response && response.success) {
-                const leads = response.data.leads || [];
-                this.populateLeadSelect(leads);
+                // Only show leads that have referral codes (partner-sourced)
+                const leadsWithReferrals = response.data.leads.filter(lead => lead.referral_code);
+                this.populateLeadSelect(leadsWithReferrals);
             }
         } catch (error) {
             console.error('Failed to load leads for select:', error);
@@ -346,21 +347,22 @@ class InternalDashboard {
                 Toast.error('Please select a lead');
                 return;
             }
-
+    
             const amount = parseFloat(amountInput.value) || 0;
             if (amount <= 0) {
                 Toast.error('Please enter a valid amount');
                 return;
             }
-
+    
             // Call payments API
             const response = await this.apiCall('POST', '/payments', {
                 lead_id: leadSelect.value,
                 amount: amount,
                 payment_method: 'bank-transfer',
-                payment_date: new Date().toISOString().split('T')[0]
+                payment_date: new Date().toISOString().split('T')[0],
+                transaction_reference: `PMT-${Date.now()}`
             });
-
+    
             if (response && response.success) {
                 Toast.success('Payment recorded successfully!');
                 this.hidePaymentModal();
@@ -375,10 +377,10 @@ class InternalDashboard {
             } else {
                 Toast.error(response?.message || 'Failed to record payment');
             }
-
+    
         } catch (error) {
             console.error('Payment confirmation error:', error);
-            Toast.error('Failed to record payment');
+            Toast.error('Failed to record payment: ' + (error.message || 'Please check the console'));
         }
     }
 

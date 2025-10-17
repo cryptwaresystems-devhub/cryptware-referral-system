@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticatePartner, authenticateInternal, authenticateUser } from '../middleware/auth.js';
 import { validateNotification } from '../middleware/validation.js';
+import { supabase } from '../config/supabase.js';
 
 const router = express.Router();
 

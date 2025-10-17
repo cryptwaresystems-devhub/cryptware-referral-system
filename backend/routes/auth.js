@@ -207,6 +207,7 @@ router.post('/login', async (req, res) => {
       console.log('🔑 Comparing plain passwords...');
       console.log('Input password:', password);
       console.log('Stored password:', internalUser.password);
+      // console.log('Internal Token:', int_token);
       
       // Compare plain text passwords
       if (password === internalUser.password) {

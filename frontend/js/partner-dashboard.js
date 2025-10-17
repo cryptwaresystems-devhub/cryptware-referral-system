@@ -1,4 +1,3 @@
-// partner-dashboard.js - Production Ready Partner Dashboard
 import { apiClient, CONFIG } from './config.js';
 import Toast from './utils/toast.js';
 
@@ -7,6 +6,7 @@ class PartnerDashboard {
         this.currentPartner = null;
         this.dashboardData = null;
         this.commissionChart = null;
+        this.payoutRequests = new Set(); // Track which referrals have pending payouts
         this.init();
     }
 
@@ -16,11 +16,17 @@ class PartnerDashboard {
             const isAuthenticated = await AuthManager.requireAuth('partner');
             if (!isAuthenticated) return;
 
+            // Load header
+            await this.loadHeader();
+            
             // Load partner data
             await this.loadPartnerData();
             
             // Load dashboard data
             await this.loadDashboardData();
+            
+            // Load payout requests to track which referrals have pending payouts
+            await this.loadPayoutRequests();
             
             // Initialize charts
             this.initCharts();
@@ -31,6 +37,16 @@ class PartnerDashboard {
         } catch (error) {
             console.error('Dashboard initialization error:', error);
             Toast.error('Failed to initialize dashboard');
+        }
+    }
+
+    async loadHeader() {
+        try {
+            const response = await fetch('partner-header.html');
+            const headerHTML = await response.text();
+            document.getElementById('header-container').innerHTML = headerHTML;
+        } catch (error) {
+            console.error('Error loading header:', error);
         }
     }
 
@@ -51,6 +67,24 @@ class PartnerDashboard {
             }
         } catch (error) {
             console.error('Error loading partner data:', error);
+        }
+    }
+
+    async loadPayoutRequests() {
+        try {
+            const response = await apiClient.get('/payouts/partner?limit=100');
+            if (response.data.success) {
+                // Track referrals with pending payouts
+                response.data.data.payouts
+                    .filter(payout => payout.status === 'pending')
+                    .forEach(payout => {
+                        if (payout.referral_id) {
+                            this.payoutRequests.add(payout.referral_id);
+                        }
+                    });
+            }
+        } catch (error) {
+            console.error('Error loading payout requests:', error);
         }
     }
 
@@ -111,13 +145,17 @@ class PartnerDashboard {
     updateDashboardUI() {
         if (!this.dashboardData) return;
 
-        const { overview, referrals_breakdown, recent_referrals, monthly_trend, quick_actions } = this.dashboardData;
+        const { overview, referrals_breakdown, recent_referrals, monthly_trend, quick_actions, payout_eligibility } = this.dashboardData;
 
         // Update key metrics
         this.updateMetric('totalReferrals', overview.total_referrals);
         this.updateMetric('activeReferrals', overview.active_referrals);
         this.updateMetric('totalCommission', this.formatCurrency(overview.total_commission_earned));
         this.updateMetric('availablePayout', this.formatCurrency(overview.available_for_payout));
+
+        // Update payout card specifically
+        this.updateMetric('dashboardAvailablePayout', this.formatCurrency(overview.available_for_payout));
+        this.updateMetric('dashboardEligibleCount', payout_eligibility?.eligible_count || 0);
 
         // Update referral breakdown
         this.updateMetric('countCodeSent', referrals_breakdown.code_sent);
@@ -151,8 +189,11 @@ class PartnerDashboard {
     updateMetric(elementId, value) {
         const element = document.getElementById(elementId);
         if (element) {
-            // Animate number counting
-            this.animateValue(element, 0, value, 1000);
+            if (typeof value === 'number') {
+                this.animateValue(element, 0, value, 1000);
+            } else {
+                element.textContent = value;
+            }
         }
     }
 
@@ -162,18 +203,9 @@ class PartnerDashboard {
             if (!startTimestamp) startTimestamp = timestamp;
             const progress = Math.min((timestamp - startTimestamp) / duration, 1);
             
-            if (typeof end === 'string' && end.includes('₦')) {
-                // Currency formatting
-                const numericValue = parseInt(end.replace(/[₦,]/g, ''));
-                const current = Math.floor(progress * numericValue);
-                element.textContent = this.formatCurrency(current);
-            } else if (typeof end === 'number') {
-                // Regular number
+            if (typeof end === 'number') {
                 const current = Math.floor(progress * end);
                 element.textContent = current.toLocaleString();
-            } else {
-                // String value
-                element.textContent = end;
             }
             
             if (progress < 1) {
@@ -204,37 +236,58 @@ class PartnerDashboard {
             return;
         }
 
-        container.innerHTML = referrals.map(referral => `
-            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div class="flex-1">
-                    <div class="flex items-center space-x-3 mb-2">
-                        <h4 class="font-semibold text-gray-900">${referral.prospect_company_name}</h4>
-                        <span class="status-badge ${this.getStatusClass(referral.status)}">
-                            ${this.getStatusText(referral.status)}
-                        </span>
+        container.innerHTML = referrals.map(referral => {
+            const hasPendingPayout = this.payoutRequests.has(referral.id);
+            const canRequestPayout = referral.status === 'fully_paid' && 
+                                   referral.commission_eligible && 
+                                   !hasPendingPayout &&
+                                   (referral.total_commission_earned || 0) > 0;
+
+            return `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <h4 class="font-semibold text-gray-900">${referral.prospect_company_name}</h4>
+                            <span class="status-badge ${this.getStatusClass(referral.status)}">
+                                ${this.getStatusText(referral.status)}
+                            </span>
+                            ${hasPendingPayout ? `
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
+                                    Payout Pending
+                                </span>
+                            ` : ''}
+                        </div>
+                        <div class="flex items-center space-x-4 text-sm text-gray-600">
+                            <span class="flex items-center">
+                                <i class="fas fa-hashtag mr-1"></i>
+                                ${referral.referral_code}
+                            </span>
+                            <span class="flex items-center">
+                                <i class="fas fa-money-bill-wave mr-1"></i>
+                                ${this.formatCurrency(referral.total_commission_earned)}
+                            </span>
+                        </div>
                     </div>
-                    <div class="flex items-center space-x-4 text-sm text-gray-600">
-                        <span class="flex items-center">
-                            <i class="fas fa-hashtag mr-1"></i>
-                            ${referral.referral_code}
-                        </span>
-                        <span class="flex items-center">
-                            <i class="fas fa-money-bill-wave mr-1"></i>
-                            ${this.formatCurrency(referral.total_commission_earned)}
-                        </span>
+                    <div class="text-right space-y-2">
+                        <div class="text-sm text-gray-500">
+                            ${new Date(referral.created_at).toLocaleDateString()}
+                        </div>
+                        <div class="space-x-2">
+                            <button onclick="partnerDashboard.viewReferral('${referral.id}')" 
+                                    class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                View Details
+                            </button>
+                            ${canRequestPayout ? `
+                                <button onclick="partnerDashboard.requestPayoutForReferral('${referral.id}', ${referral.total_commission_earned})" 
+                                        class="text-green-600 hover:text-green-700 text-sm font-medium">
+                                    Request Payout
+                                </button>
+                            ` : ''}
+                        </div>
                     </div>
                 </div>
-                <div class="text-right">
-                    <div class="text-sm text-gray-500">
-                        ${new Date(referral.created_at).toLocaleDateString()}
-                    </div>
-                    <button onclick="partnerDashboard.viewReferral('${referral.id}')" 
-                            class="text-blue-600 hover:text-blue-700 text-sm font-medium mt-1">
-                        View Details
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     getStatusClass(status) {
@@ -271,6 +324,9 @@ class PartnerDashboard {
             payoutBtn.disabled = !canRequestPayout;
             if (!canRequestPayout) {
                 payoutBtn.title = 'No eligible commissions available for payout';
+                payoutBtn.innerHTML = '<i class="fas fa-money-bill-wave mr-2"></i>No Payout Available';
+            } else {
+                payoutBtn.innerHTML = '<i class="fas fa-money-bill-wave mr-2"></i>Request Payout';
             }
         }
     }
@@ -301,118 +357,199 @@ class PartnerDashboard {
             nextTier = 'Gold';
             referralsNeeded = 25 - totalReferrals;
         } else {
-            progress = (totalReferrals / 10) * 100;
+            progress = Math.min(100, (totalReferrals / 10) * 100);
             referralsNeeded = 10 - totalReferrals;
         }
 
-        if (tierEl) tierEl.textContent = `${tier} Partner`;
+        if (tierEl) tierEl.textContent = tier;
         if (progressEl) progressEl.style.width = `${progress}%`;
         if (progressTextEl) {
-            progressTextEl.textContent = referralsNeeded > 0 ? 
-                `${totalReferrals}/10 to ${nextTier} Tier` : 
-                'Maximum Tier Achieved!';
+            if (referralsNeeded > 0) {
+                progressTextEl.textContent = `${referralsNeeded} more referrals to ${nextTier}`;
+            } else {
+                progressTextEl.textContent = 'Maximum tier achieved!';
+            }
         }
     }
 
     initCharts() {
+        // Commission trend chart
         const ctx = document.getElementById('commissionChart');
-        if (!ctx) return;
-
-        this.commissionChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Commission Earnings',
-                    data: [],
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+        if (ctx) {
+            this.commissionChart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Monthly Commission',
+                        data: [],
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
                         },
-                        ticks: {
-                            callback: function(value) {
-                                return '₦' + value.toLocaleString();
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `₦${parseInt(context.raw).toLocaleString()}`;
+                                }
                             }
                         }
                     },
-                    x: {
-                        grid: {
-                            display: false
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₦' + parseInt(value).toLocaleString();
+                                }
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
+
+        // Referral status chart
+        const statusCtx = document.getElementById('referralStatusChart');
+        if (statusCtx) {
+            this.statusChart = new Chart(statusCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Code Sent', 'Contacted', 'In Progress', 'Converted'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            '#f59e0b', // amber-500
+                            '#3b82f6', // blue-500
+                            '#8b5cf6', // violet-500
+                            '#10b981'  // emerald-500
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
     }
 
     updateChartData(monthlyTrend) {
-        if (!this.commissionChart || !monthlyTrend) return;
+        if (!monthlyTrend || !this.commissionChart) return;
 
         const labels = monthlyTrend.map(item => {
-            const [year, month] = item.month.split('-');
-            return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            const date = new Date(item.year, item.month - 1);
+            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
         });
 
-        const data = monthlyTrend.map(item => item.amount);
+        const data = monthlyTrend.map(item => item.total_commission);
 
         this.commissionChart.data.labels = labels;
         this.commissionChart.data.datasets[0].data = data;
         this.commissionChart.update();
+
+        // Update status chart if available
+        if (this.statusChart && this.dashboardData) {
+            const breakdown = this.dashboardData.referrals_breakdown;
+            this.statusChart.data.datasets[0].data = [
+                breakdown.code_sent,
+                breakdown.contacted,
+                breakdown.meeting_scheduled + breakdown.proposal_sent + breakdown.negotiation,
+                breakdown.fully_paid
+            ];
+            this.statusChart.update();
+        }
     }
 
     setupAutoRefresh() {
-        // Refresh data every 2 minutes
+        // Refresh dashboard data every 2 minutes
         setInterval(() => {
             this.loadDashboardData();
         }, 120000);
 
-        // Also refresh when page becomes visible
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                this.loadDashboardData();
-            }
-        });
+        // Listen for real-time updates if available
+        if (typeof supabase !== 'undefined') {
+            this.setupRealtimeUpdates();
+        }
     }
 
-    async requestPayout() {
-        try {
-            if (!this.dashboardData.overview.available_for_payout || 
-                this.dashboardData.overview.available_for_payout <= 0) {
-                Toast.error('No eligible commissions available for payout');
-                return;
-            }
+    setupRealtimeUpdates() {
+        // Set up real-time subscription for referral status updates
+        const subscription = supabase
+            .channel('referral-updates')
+            .on('postgres_changes', 
+                { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'referrals',
+                    filter: `partner_id=eq.${this.currentPartner.id}`
+                }, 
+                (payload) => {
+                    console.log('Real-time update received:', payload);
+                    this.loadDashboardData(); // Refresh data
+                    Toast.info('Referral status updated');
+                }
+            )
+            .subscribe();
+    }
 
-            const response = await apiClient.post(CONFIG.API.ENDPOINTS.PARTNER.PAYOUTS, {
-                amount: this.dashboardData.overview.available_for_payout
+    async requestPayoutForReferral(referralId, amount) {
+        try {
+            // Disable the button immediately
+            const buttons = document.querySelectorAll(`[onclick*="${referralId}"]`);
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+            });
+
+            const response = await apiClient.post('/payouts/request', {
+                referral_id: referralId,
+                amount: amount
             });
 
             if (response.data.success) {
-                Toast.success('Payout request submitted successfully!');
-                // Refresh dashboard data
-                await this.loadDashboardData();
+                // Add to pending payouts
+                this.payoutRequests.add(referralId);
+                
+                // Show success message
+                Toast.success('Payout request sent to Cryptware team. Payment will be processed within 24-48 hours.');
+                
+                // Reload dashboard to reflect changes
+                setTimeout(() => {
+                    this.loadDashboardData();
+                }, 2000);
             } else {
                 throw new Error(response.data.message);
             }
         } catch (error) {
-            console.error('Payout request error:', error);
-            Toast.error(error.response?.data?.message || 'Failed to submit payout request');
+            console.error('Error requesting payout:', error);
+            Toast.error(error.response?.data?.message || 'Failed to request payout');
+            
+            // Re-enable buttons
+            const buttons = document.querySelectorAll(`[onclick*="${referralId}"]`);
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.innerHTML = 'Request Payout';
+            });
         }
     }
 
@@ -420,9 +557,31 @@ class PartnerDashboard {
         window.location.href = `referral-details.html?id=${referralId}`;
     }
 
-    downloadCommissionCSV() {
-        // Implement CSV export functionality
-        Toast.info('Export feature coming soon!');
+    async exportCommissionReport() {
+        try {
+            const startDate = document.getElementById('exportStartDate')?.value;
+            const endDate = document.getElementById('exportEndDate')?.value;
+
+            const response = await apiClient.get('/commissions/export', {
+                params: { start_date: startDate, end_date: endDate },
+                responseType: 'blob'
+            });
+
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `commission-report-${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+
+            Toast.success('Commission report exported successfully');
+        } catch (error) {
+            console.error('Error exporting commission report:', error);
+            Toast.error('Failed to export commission report');
+        }
     }
 }
 
@@ -430,5 +589,3 @@ class PartnerDashboard {
 document.addEventListener('DOMContentLoaded', () => {
     window.partnerDashboard = new PartnerDashboard();
 });
-
-export default PartnerDashboard;

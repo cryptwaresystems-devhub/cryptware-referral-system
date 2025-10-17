@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payouts | Cryptware Partner</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script type="module" src="./js/config.js"></script>
+    <script type="module" src="./js/utils/toast.js"></script>
+    <script type="module" src="./js/auth-manager.js"></script>
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-pending { background: #fef3c7; color: #d97706; }
+        .status-processing { background: #dbeafe; color: #1e40af; }
+        .status-paid { background: #d1fae5; color: #065f46; }
+        .status-failed { background: #fee2e2; color: #dc2626; }
+
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            .mobile-stack { flex-direction: column; }
+            .mobile-full { width: 100%; }
+            .mobile-text-center { text-align: center; }
+            .mobile-p-4 { padding: 1rem; }
+            .mobile-space-y-2 > * + * { margin-top: 0.5rem; }
+            
+            .table-container {
+                font-size: 0.75rem;
+                overflow-x: auto;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .action-buttons button {
+                width: 100%;
+            }
+        }
+
+        /* Animation for elements */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        /* Loading states */
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen font-['Inter']">
+    <!-- Navigation -->
+    <nav class="bg-white border-b shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-4">
+                    <a href="partner-dashboard.html" class="flex items-center text-blue-600 hover:text-blue-700 font-semibold transition">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-600" id="userName">Loading...</span>
+                    <button id="logoutBtn" class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition flex items-center">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Header Section -->
+        <div class="text-center mb-8 fade-in">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Payout Management</h1>
+            <p class="text-gray-600 text-lg max-w-2xl mx-auto">
+                Request and track your commission payouts
+            </p>
+        </div>
+
+        <!-- Payout Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-card rounded-2xl p-5 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-1" id="totalEarned">₦0</h3>
+                        <p class="text-gray-600 text-sm">Total Earned</p>
+                    </div>
+                    <div class="bg-green-100 w-10 h-10 rounded-full flex items-center justify-center">
+                        <i class="fas fa-money-bill-wave text-green-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-1" id="availablePayout">₦0</h3>
+                        <p class="text-gray-600 text-sm">Available for Payout</p>
+                    </div>
+                    <div class="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center">
+                        <i class="fas fa-wallet text-blue-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-1" id="totalPaid">₦0</h3>
+                        <p class="text-gray-600 text-sm">Total Paid Out</p>
+                    </div>
+                    <div class="bg-purple-100 w-10 h-10 rounded-full flex items-center justify-center">
+                        <i class="fas fa-check-circle text-purple-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-5 fade-in">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-1" id="pendingPayouts">0</h3>
+                        <p class="text-gray-600 text-sm">Pending Payouts</p>
+                    </div>
+                    <div class="bg-yellow-100 w-10 h-10 rounded-full flex items-center justify-center">
+                        <i class="fas fa-clock text-yellow-600"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Eligible Payouts Section -->
+        <div id="eligiblePayoutsSection" class="glass-card rounded-2xl p-6 mb-8 fade-in hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-gift text-green-500 mr-3"></i>
+                    Available for Payout
+                </h2>
+                <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+                    <span id="eligibleCount">0</span> referrals ready
+                </span>
+            </div>
+
+            <div class="space-y-4" id="eligiblePayoutsList">
+                <!-- Eligible payouts will be populated here -->
+            </div>
+        </div>
+
+        <!-- No Eligible Payouts Message -->
+        <div id="noEligiblePayouts" class="glass-card rounded-2xl p-8 text-center mb-8 hidden">
+            <div class="text-gray-300 text-4xl mb-4">
+                <i class="fas fa-inbox"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">No Payouts Available</h3>
+            <p class="text-gray-600 mb-4">You don't have any referrals ready for payout yet.</p>
+            <p class="text-gray-500 text-sm">Payouts become available when your referrals are marked as "fully paid" by the Cryptware team.</p>
+        </div>
+
+        <!-- Payout History -->
+        <div class="glass-card rounded-2xl overflow-hidden shadow-lg fade-in">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-4 sm:px-6">
+                <div class="flex justify-between items-center mobile-stack">
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-semibold text-white flex items-center">
+                            <i class="fas fa-history mr-2"></i>Payout History
+                        </h2>
+                        <p class="text-blue-100 text-sm">Your complete payout request history</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Live</span>
+                        <button id="refreshPayouts" class="text-blue-200 hover:text-white transition">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container custom-scrollbar">
+                <table class="w-full">
+                    <thead class="bg-blue-50">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Referral</th>
+                            <th class="px-3 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Amount</th>
+                            <th class="px-3 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Requested</th>
+                            <th class="px-3 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Status</th>
+                            <th class="px-3 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Processed</th>
+                            <th class="px-3 py-3 text-left text-xs font-semibold text-blue-600 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100" id="payoutsTableBody">
+                        <!-- Payouts will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="noPayouts" class="px-6 py-12 text-center hidden">
+                <div class="text-blue-200 text-4xl mb-4">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <h3 class="text-gray-600 text-lg mb-2">No payout history yet</h3>
+                <p class="text-gray-500 text-sm">Your payout requests will appear here once you make them.</p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="payoutsLoading" class="px-6 py-8">
+                <div class="space-y-3">
+                    <div class="loading-skeleton h-4 rounded"></div>
+                    <div class="loading-skeleton h-4 rounded w-3/4"></div>
+                    <div class="loading-skeleton h-4 rounded w-1/2"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Request Payout Modal -->
+    <div id="requestPayoutModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-auto">
+            <div class="modal-header p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-hand-holding-usd text-green-500 mr-2"></i>Request Payout
+                </h3>
+                <button onclick="partnerPayouts.hideRequestPayoutModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="payoutConfirmation">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle text-yellow-500 mr-3"></i>
+                            <div>
+                                <h4 class="font-semibold text-yellow-800">Payout Request</h4>
+                                <p class="text-yellow-700 text-sm mt-1">You are about to request payout for this referral.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Referral:</span>
+                            <span class="font-semibold" id="payoutReferralName">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Commission Amount:</span>
+                            <span class="font-bold text-green-600" id="payoutAmount">₦0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Your Bank:</span>
+                            <span class="font-semibold" id="payoutBankInfo">-</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                        <p class="text-blue-700 text-sm">
+                            <i class="fas fa-clock mr-2"></i>
+                            Payouts are typically processed within 24-48 hours after request.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer p-4 border-t flex justify-end space-x-3">
+                <button onclick="partnerPayouts.hideRequestPayoutModal()" class="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded-lg transition text-sm">
+                    Cancel
+                </button>
+                <button onclick="partnerPayouts.confirmPayoutRequest()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition flex items-center text-sm">
+                    <i class="fas fa-check mr-2"></i>Confirm Request
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payout Details Modal -->
+    <div id="payoutDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-auto">
+            <div class="modal-header p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-receipt text-blue-500 mr-2"></i>Payout Details
+                </h3>
+                <button onclick="partnerPayouts.hidePayoutDetailsModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="payoutDetailsContent">
+                    <!-- Payout details will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer p-4 border-t flex justify-end">
+                <button onclick="partnerPayouts.hidePayoutDetailsModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/partner-payouts.js"></script>
+</body>
+</html>

@@ -8,65 +8,67 @@ export class AuthManager {
 
     // Unified login for both partners and internal users
     static async login(email, password, userType = 'auto') {
-    try {
-        console.log(`🔐 Attempting login for: ${email}`);
-        
-        const response = await apiClient.post(CONFIG.API.ENDPOINTS.AUTH.LOGIN, {
-            email: email.trim().toLowerCase(),
-            password: password
-        });
-
-        if (response.data.success) {
-            const { user, userType, session } = response.data.data;
+        try {
+            console.log(`🔐 Attempting login for: ${email}`);
             
-            // ✅ Store the appropriate token
-            if (session?.access_token) {
-                localStorage.setItem('authToken', session.access_token);
-                console.log('✅ Auth token stored:', session.access_token.substring(0, 20) + '...');
+            const response = await apiClient.post(CONFIG.API.ENDPOINTS.AUTH.LOGIN, {
+                email: email.trim().toLowerCase(),
+                password: password
+            });
+
+            if (response.data.success) {
+                const { user, userType, session } = response.data.data;
+                
+                // ✅ Store the appropriate token based on user type
+                if (userType === 'partner') {
+                    // For partners: store JWT token
+                    if (session?.access_token) {
+                        localStorage.setItem('authToken', session.access_token);
+                        console.log('✅ Partner auth token stored');
+                    }
+                    localStorage.setItem('currentPartner', JSON.stringify(user));
+                    localStorage.removeItem('internalUser');
+                    
+                    Toast.success(`Welcome back, ${user.company_name}!`);
+                    setTimeout(() => {
+                        window.location.href = 'partner-dashboard.html';
+                    }, 1500);
+                    
+                } else if (userType === 'internal') {
+                    // For internal users: create internal token format
+                    const internalToken = `internal_user_${user.id}`;
+                    localStorage.setItem('authToken', internalToken);
+                    console.log('✅ Internal auth token stored:', internalToken);
+                    
+                    localStorage.setItem('internalUser', JSON.stringify(user));
+                    localStorage.removeItem('currentPartner');
+                    
+                    Toast.success(`Welcome back, ${user.name}!`);
+                    setTimeout(() => {
+                        window.location.href = 'internal-dashboard.html';
+                    }, 1500);
+                }
+                
+                return { success: true, user, userType };
             } else {
-                console.warn('⚠️ No access token in response');
+                throw new Error(response.data.message || 'Login failed');
             }
             
-            // Store user based on type
-            if (userType === 'partner') {
-                localStorage.setItem('currentPartner', JSON.stringify(user));
-                localStorage.removeItem('internalUser');
-                
-                Toast.success(`Welcome back, ${user.company_name}!`);
-                setTimeout(() => {
-                    window.location.href = 'partner-dashboard.html';
-                }, 1500);
-                
-            } else if (userType === 'internal') {
-                localStorage.setItem('internalUser', JSON.stringify(user));
-                localStorage.removeItem('currentPartner');
-                
-                Toast.success(`Welcome back, ${user.name}!`);
-                setTimeout(() => {
-                    window.location.href = 'internal-dashboard.html';
-                }, 1500);
-            }
+        } catch (error) {
+            console.error('💥 Login error:', error);
             
-            return { success: true, user, userType };
-        } else {
-            throw new Error(response.data.message || 'Login failed');
-        }
-        
-    } catch (error) {
-        console.error('💥 Login error:', error);
-        
-        let errorMessage = 'An unexpected error occurred. Please try again.';
-        
-        if (error.response) {
-            errorMessage = error.response.data?.message || errorMessage;
-        } else if (error.message) {
-            errorMessage = error.message;
-        }
+            let errorMessage = 'An unexpected error occurred. Please try again.';
+            
+            if (error.response) {
+                errorMessage = error.response.data?.message || errorMessage;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
 
-        Toast.error(errorMessage);
-        return { success: false, error: errorMessage };
+            Toast.error(errorMessage);
+            return { success: false, error: errorMessage };
+        }
     }
-}
 
     // Partner-specific login (legacy support)
     static async partnerLogin(email, password) {
@@ -200,6 +202,48 @@ export class AuthManager {
 
         return true;
     }
+
+    // Generate proper token for API calls
+static getAuthToken() {
+    const currentUser = this.getCurrentUser();
+    const storedToken = localStorage.getItem('authToken');
+    
+    if (storedToken) {
+        return storedToken;
+    }
+    
+    // Fallback: generate token from user data
+    if (currentUser?.type === 'internal' && currentUser.data?.id) {
+        return `internal_user_${currentUser.data.id}`;
+    }
+    
+    return '';
+}
+
+// Store internal user with proper token
+static storeInternalUser(userData) {
+    if (userData && userData.id) {
+        const internalToken = `internal_user_${userData.id}`;
+        localStorage.setItem('authToken', internalToken);
+        localStorage.setItem('internalUser', JSON.stringify(userData));
+        console.log('✅ Internal user stored with token:', internalToken);
+        return internalToken;
+    }
+    return null;
+}
+
+// Store partner with proper token  
+static storePartnerUser(userData, sessionToken = null) {
+    if (userData) {
+        if (sessionToken) {
+            localStorage.setItem('authToken', sessionToken);
+        }
+        localStorage.setItem('currentPartner', JSON.stringify(userData));
+        console.log('✅ Partner user stored');
+        return sessionToken;
+    }
+    return null;
+}
 
     // Forgot password
     static async forgotPassword(email) {

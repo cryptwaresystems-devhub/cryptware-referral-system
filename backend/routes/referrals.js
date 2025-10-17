@@ -1,12 +1,9 @@
 import express from 'express';
-import { supabase } from '../config/supabase.js';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { authenticatePartner, authenticateInternal } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// @route   POST /api/referrals/create
-// @desc    Partner creates referral with auto-generated "CRYPT-XXXXXX" code
-// @access  Private (Partner)
 // @route   POST /api/referrals/create
 // @desc    Partner creates referral with auto-generated "CRYPT-XXXXXX" code
 // @access  Private (Partner)
@@ -148,9 +145,6 @@ router.post('/create', authenticatePartner, async (req, res) => {
 // @route   GET /api/referrals
 // @desc    Partner views their referrals with pagination
 // @access  Private (Partner)
-// @route   GET /api/referrals
-// @desc    Partner views their referrals with pagination
-// @access  Private (Partner)
 router.get('/', authenticatePartner, async (req, res) => {
   try {
     const partnerId = req.partner.id;
@@ -254,8 +248,8 @@ router.get('/:id', authenticatePartner, async (req, res) => {
 
     console.log(`🔍 Fetching referral details: ${referralId} for partner: ${partnerId}`);
 
-    // Get referral with lead details and activities
-    const { data: referral, error } = await supabase
+    // Get referral with lead details and activities - USE ADMIN CLIENT
+    const { data: referral, error } = await supabaseAdmin
       .from('referrals')
       .select(`
         *,
@@ -297,13 +291,9 @@ router.get('/:id', authenticatePartner, async (req, res) => {
     }
 
     // Calculate total payments and commission
-    const totalPayments = referral.client_payments
-      ?.filter(p => p.status === 'confirmed')
-      ?.reduce((sum, payment) => sum + payment.amount, 0) || 0;
-
-    const totalCommission = referral.client_payments
-      ?.filter(p => p.status === 'confirmed')
-      ?.reduce((sum, payment) => sum + payment.commission_calculated, 0) || 0;
+    const confirmedPayments = referral.client_payments?.filter(p => p.status === 'confirmed') || [];
+    const totalPayments = confirmedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalCommission = confirmedPayments.reduce((sum, payment) => sum + payment.commission_calculated, 0);
 
     res.json({
       success: true,
@@ -418,21 +408,43 @@ router.get('/stats/dashboard', authenticatePartner, async (req, res) => {
   }
 });
 
+
 // @route   GET /api/referrals/code/:code
-// @desc    Internal: lookup referral by code (for internal team use)
+// @desc    Internal: lookup referral by code
 // @access  Private (Internal)
 router.get('/code/:code', authenticateInternal, async (req, res) => {
   try {
     const { code } = req.params;
 
-    console.log(`🔍 Looking up referral by code: ${code}`);
+    console.log(`🔍 Looking up referral code: ${code}`);
 
-    // Get referral with partner details
-    const { data: referral, error } = await supabase
+    // Validate code format
+    if (!code || !/^CRYPT-[A-Z0-9]{6}$/i.test(code)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid referral code format. Must be CRYPT-XXXXXX'
+      });
+    }
+
+    const normalizedCode = code.toUpperCase();
+
+    console.log(`🔍 Using ADMIN client to bypass RLS for code: ${normalizedCode}`);
+
+    // Use admin client to bypass RLS
+    const { data: referral, error } = await supabaseAdmin
       .from('referrals')
       .select(`
-        *,
-        partners:partner_id (
+        id,
+        referral_code,
+        prospect_company_name,
+        contact_name,
+        email,
+        phone,
+        industry,
+        estimated_deal_value,
+        status,
+        partner_id,
+        partners!referrals_partner_id_fkey (
           id,
           company_name,
           contact_name,
@@ -441,22 +453,54 @@ router.get('/code/:code', authenticateInternal, async (req, res) => {
           bank_verified
         )
       `)
-      .eq('referral_code', code.toUpperCase())
+      .eq('referral_code', normalizedCode)
       .single();
 
-    if (error || !referral) {
+    if (error) {
+      console.error('❌ Referral lookup error with admin client:', error);
+      
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: `Referral code "${normalizedCode}" not found in database`
+        });
+      }
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Database error while looking up referral: ' + error.message
+      });
+    }
+
+    if (!referral) {
       return res.status(404).json({
         success: false,
         message: 'Referral code not found'
       });
     }
 
+    console.log(`✅ Referral found: ${referral.prospect_company_name}`);
+
+    // Format response data
+    const responseData = {
+      referral: {
+        id: referral.id,
+        referral_code: referral.referral_code,
+        prospect_company_name: referral.prospect_company_name,
+        contact_name: referral.contact_name,
+        email: referral.email,
+        phone: referral.phone,
+        industry: referral.industry,
+        estimated_deal_value: referral.estimated_deal_value,
+        status: referral.status
+      },
+      partner: referral.partners
+    };
+
     res.json({
       success: true,
-      data: {
-        referral,
-        partner: referral.partners
-      }
+      message: 'Referral code verified successfully! 🎉',
+      data: responseData
     });
 
   } catch (error) {
@@ -467,5 +511,6 @@ router.get('/code/:code', authenticateInternal, async (req, res) => {
     });
   }
 });
+
 
 export default router;

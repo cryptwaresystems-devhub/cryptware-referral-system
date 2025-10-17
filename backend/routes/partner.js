@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../config/supabase.js';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { authenticateUser, authenticatePartner } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 // @access  Private (Partner)
 router.get('/dashboard', authenticatePartner, async (req, res) => {
   try {
-    const partnerId = req.user.id; // Changed from req.partner.id to req.user.id
+    const partnerId = req.user.id;
 
     console.log(`📊 Fetching partner dashboard: ${partnerId}`);
 
@@ -17,7 +17,8 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
     const [ 
       referralsResponse,
       payoutsResponse,
-      recentActivityResponse
+      recentActivityResponse,
+      eligiblePayoutsResponse
     ] = await Promise.all([
       // Referrals statistics
       supabase
@@ -44,7 +45,16 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
         `)
         .eq('partner_id', partnerId)
         .order('created_at', { ascending: false })
-        .limit(5)
+        .limit(5),
+
+      // Eligible payouts (fully_paid referrals with commission, payout not requested)
+      supabase
+        .from('referrals')
+        .select('id, prospect_company_name, total_commission_earned, payout_requested')
+        .eq('partner_id', partnerId)
+        .eq('status', 'fully_paid')
+        .eq('commission_eligible', true)
+        .eq('payout_requested', false)
     ]);
 
     if (referralsResponse.error) {
@@ -58,6 +68,7 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
     const referrals = referralsResponse.data || [];
     const payouts = payoutsResponse.data || [];
     const recentReferrals = recentActivityResponse.data || [];
+    const eligiblePayouts = eligiblePayoutsResponse.data || [];
 
     // Calculate comprehensive statistics
     const totalReferrals = referrals.length;
@@ -73,7 +84,7 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
       sum + (r.total_deal_value || 0), 0
     );
 
-    // Calculate available for payout (fully_paid referrals)
+    // Calculate available for payout (fully_paid referrals with commission)
     const eligibleReferrals = referrals.filter(r => 
       r.status === 'fully_paid' && r.total_commission_earned > 0
     );
@@ -118,8 +129,10 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
     // Check quick actions
     const quickActions = {
       can_create_referral: true,
-      can_request_payout: availableForPayout > 0,
-      has_pending_verification: false
+      can_request_payout: eligiblePayouts.length > 0,
+      has_pending_verification: false,
+      eligible_payouts_count: eligiblePayouts.length,
+      eligible_payouts_amount: eligiblePayouts.reduce((sum, r) => sum + (r.total_commission_earned || 0), 0)
     };
 
     res.json({
@@ -137,7 +150,12 @@ router.get('/dashboard', authenticatePartner, async (req, res) => {
         referrals_breakdown: referralsBreakdown,
         recent_referrals: recentReferrals,
         monthly_trend: monthlyTrend,
-        quick_actions: quickActions
+        quick_actions: quickActions,
+        payout_eligibility: {
+          eligible_count: eligiblePayouts.length,
+          eligible_amount: eligiblePayouts.reduce((sum, r) => sum + (r.total_commission_earned || 0), 0),
+          referrals: eligiblePayouts
+        }
       }
     });
 
@@ -268,7 +286,7 @@ router.put('/profile', authenticateUser, async (req, res) => {
 // @route   GET /api/partner/commissions
 // @desc    Commission overview and pending earnings
 // @access  Private (Partner)
-router.get('/commissions', authenticateUser, async (req, res) => {
+router.get('/commissions', authenticatePartner, async (req, res) => {
   try {
     const partnerId = req.partner.id;
 
@@ -276,17 +294,17 @@ router.get('/commissions', authenticateUser, async (req, res) => {
 
     const [
       referralsResponse,
-      payoutsResponse,
-      paymentsResponse
+      payoutsResponse
     ] = await Promise.all([
-      // Referrals with commissions
-      supabase
+      // Referrals with commissions - USE ADMIN CLIENT
+      supabaseAdmin
         .from('referrals')
         .select(`
           id,
           prospect_company_name,
           referral_code,
           status,
+          estimated_deal_value,
           total_commission_earned,
           total_deal_value,
           commission_eligible,
@@ -295,26 +313,12 @@ router.get('/commissions', authenticateUser, async (req, res) => {
         .eq('partner_id', partnerId)
         .order('created_at', { ascending: false }),
 
-      // Payout history
-      supabase
+      // Payout history - USE ADMIN CLIENT
+      supabaseAdmin
         .from('partner_payouts')
         .select('*')
         .eq('partner_id', partnerId)
-        .order('requested_at', { ascending: false }),
-
-      // Payment details
-      supabase
-        .from('client_payments')
-        .select(`
-          amount,
-          commission_calculated,
-          payment_date,
-          status,
-          referrals!inner(partner_id, prospect_company_name)
-        `)
-        .eq('referrals.partner_id', partnerId)
-        .eq('status', 'confirmed')
-        .order('payment_date', { ascending: false })
+        .order('requested_at', { ascending: false })
     ]);
 
     if (referralsResponse.error) {
@@ -327,7 +331,6 @@ router.get('/commissions', authenticateUser, async (req, res) => {
 
     const referrals = referralsResponse.data || [];
     const payouts = payoutsResponse.data || [];
-    const payments = paymentsResponse.data || [];
 
     // Calculate commission summary
     const totalCommissionEarned = referrals.reduce((sum, r) => 
@@ -342,26 +345,38 @@ router.get('/commissions', authenticateUser, async (req, res) => {
       .filter(p => p.status === 'paid')
       .reduce((sum, p) => sum + (p.amount || 0), 0);
 
-    const pendingPayouts = payouts
-      .filter(p => p.status === 'pending' || p.status === 'processing')
-      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    const pendingCommission = referrals
+      .filter(r => !r.commission_eligible && r.total_commission_earned > 0)
+      .reduce((sum, r) => sum + (r.total_commission_earned || 0), 0);
+
+    console.log(`💰 Commission Summary for partner ${partnerId}:`, {
+      totalCommissionEarned,
+      availableForPayout,
+      totalPaidOut,
+      pendingCommission,
+      referralCount: referrals.length
+    });
 
     res.json({
       success: true,
       data: {
         summary: {
-          total_commission_earned,
+          total_commission_earned: totalCommissionEarned,
           available_for_payout: availableForPayout,
           total_paid_out: totalPaidOut,
-          pending_payouts: pendingPayouts
+          pending_commission: pendingCommission
         },
         referrals: referrals.map(r => ({
-          ...r,
-          payout_eligible: r.commission_eligible && r.total_commission_earned > 0
+          id: r.id,
+          prospect_company_name: r.prospect_company_name,
+          referral_code: r.referral_code,
+          status: r.status,
+          estimated_deal_value: r.estimated_deal_value, // Agreed value
+          total_deal_value: r.total_deal_value, // Actual payments received
+          commission_earned: r.total_commission_earned,
+          commission_eligible: r.commission_eligible
         })),
-        payouts,
-        recent_payments: payments.slice(0, 10),
-        commission_rate: 0.05
+        payouts: payouts
       }
     });
 

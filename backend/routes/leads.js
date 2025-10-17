@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateInternal } from '../middleware/auth.js';
-import { supabase } from '../config/supabase.js';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
 
 const router = express.Router();
 
@@ -37,26 +37,27 @@ router.post('/', authenticateInternal, async (req, res) => {
     let referralId = null;
     let partnerId = null;
 
-    // Link to referral if code provided
+    // Link to referral if code provided - USE ADMIN CLIENT
     if (referral_code) {
-      const { data: referral, error: referralError } = await supabase
+      const { data: referral, error: referralError } = await supabaseAdmin // Use supabaseAdmin
         .from('referrals')
         .select('id, partner_id, prospect_company_name, contact_name, email')
         .eq('referral_code', referral_code.toUpperCase())
         .single();
 
       if (referralError) {
+        console.error('❌ Referral lookup error in leads creation:', referralError);
         return res.status(400).json({
           success: false,
-          message: 'Invalid referral code'
+          message: 'Invalid referral code: ' + referralError.message
         });
       }
 
       referralId = referral.id;
       partnerId = referral.partner_id;
 
-      // Update referral status to contacted
-      await supabase
+      // Update referral status to contacted - USE ADMIN CLIENT
+      await supabaseAdmin // Use supabaseAdmin
         .from('referrals')
         .update({ 
           status: 'contacted',
@@ -65,8 +66,8 @@ router.post('/', authenticateInternal, async (req, res) => {
         .eq('id', referralId);
     }
 
-    // Create lead
-    const { data: lead, error: leadError } = await supabase
+    // Create lead - USE ADMIN CLIENT for consistency
+    const { data: lead, error: leadError } = await supabaseAdmin // Use supabaseAdmin
       .from('leads')
       .insert({
         company_name,
@@ -100,8 +101,8 @@ router.post('/', authenticateInternal, async (req, res) => {
 
     console.log(`✅ Lead created: ${lead.id}`);
 
-    // Create initial activity
-    await supabase
+    // Create initial activity - USE ADMIN CLIENT
+    await supabaseAdmin // Use supabaseAdmin
       .from('lead_activities')
       .insert({
         lead_id: lead.id,
@@ -110,8 +111,8 @@ router.post('/', authenticateInternal, async (req, res) => {
         recorded_by: internalUserId
       });
 
-    // Audit log
-    await supabase
+    // Audit log - USE ADMIN CLIENT
+    await supabaseAdmin // Use supabaseAdmin
       .from('audit_logs')
       .insert({
         user_id: internalUserId,
@@ -158,8 +159,8 @@ router.get('/', authenticateInternal, async (req, res) => {
 
     console.log(`📋 Fetching leads, page: ${page}, filters:`, { status, source, search });
 
-    // Build query
-    let query = supabase
+    // Build query - USE ADMIN CLIENT
+    let query = supabaseAdmin // Use supabaseAdmin
       .from('leads')
       .select(`
         *,
@@ -196,8 +197,8 @@ router.get('/', authenticateInternal, async (req, res) => {
       });
     }
 
-    // Get lead statistics
-    const { data: allLeads } = await supabase
+    // Get lead statistics - USE ADMIN CLIENT
+    const { data: allLeads } = await supabaseAdmin // Use supabaseAdmin
       .from('leads')
       .select('status, source');
 
@@ -251,7 +252,7 @@ router.get('/:id', authenticateInternal, async (req, res) => {
     console.log(`🔍 Fetching lead details: ${leadId}`);
 
     // Get lead with detailed information
-    const { data: lead, error } = await supabase
+    const { data: lead, error } = await supabaseAdmin
       .from('leads')
       .select(`
         *,
@@ -344,7 +345,7 @@ router.put('/:id', authenticateInternal, async (req, res) => {
     }
 
     // Log activity
-    await supabase
+    await supabaseAdmin
       .from('lead_activities')
       .insert({
         lead_id: leadId,
@@ -354,7 +355,7 @@ router.put('/:id', authenticateInternal, async (req, res) => {
       });
 
     // Audit log
-    await supabase
+    await supabaseAdmin
       .from('audit_logs')
       .insert({
         user_id: internalUserId,
@@ -406,7 +407,7 @@ router.put('/:id/status', authenticateInternal, async (req, res) => {
       });
     }
 
-    const { data: lead, error } = await supabase
+    const { data: lead, error } = await supabaseAdmin
       .from('leads')
       .update({
         status,
@@ -426,7 +427,7 @@ router.put('/:id/status', authenticateInternal, async (req, res) => {
     }
 
     // Log status change activity
-    await supabase
+    await supabaseAdmin
       .from('lead_activities')
       .insert({
         lead_id: leadId,
@@ -445,7 +446,7 @@ router.put('/:id/status', authenticateInternal, async (req, res) => {
       else if (status === 'proposal') referralStatus = 'proposal_sent';
       else if (status === 'negotiation') referralStatus = 'negotiation';
 
-      await supabase
+      await supabaseAdmin
         .from('referrals')
         .update({
           status: referralStatus,
@@ -495,7 +496,7 @@ router.post('/:id/activities', authenticateInternal, async (req, res) => {
       });
     }
 
-    const { data: activity, error } = await supabase
+    const { data: activity, error } = await supabaseAdmin
       .from('lead_activities')
       .insert({
         lead_id: leadId,
@@ -518,7 +519,7 @@ router.post('/:id/activities', authenticateInternal, async (req, res) => {
     }
 
     // Update lead's last_contact timestamp
-    await supabase
+    await supabaseAdmin
       .from('leads')
       .update({
         last_contact: new Date().toISOString(),
@@ -537,6 +538,118 @@ router.post('/:id/activities', authenticateInternal, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error while logging activity'
+    });
+  }
+});
+
+// @route   PATCH /api/leads/:id/payment-complete
+// @desc    Mark lead as fully paid by prospect
+// @access  Private (Internal)
+router.patch('/:id/payment-complete', authenticateInternal, async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    const internalUserId = req.internalUser.id;
+
+    console.log(`💰 Marking lead as payment complete: ${leadId}`);
+
+    // Get lead with referral details
+    const { data: lead, error: leadError } = await supabaseAdmin
+      .from('leads')
+      .select(`
+        *,
+        referrals!referral_id (id, partner_id, prospect_company_name, total_commission_earned)
+      `)
+      .eq('id', leadId)
+      .single();
+
+    if (leadError || !lead) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
+    }
+
+    // Update lead as payment completed
+    const { data: updatedLead, error: updateError } = await supabaseAdmin
+      .from('leads')
+      .update({
+        payment_completed: true,
+        payment_completed_at: new Date().toISOString(),
+        payment_completed_by: internalUserId,
+        status: 'converted',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', leadId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Payment completion error:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to mark payment as complete'
+      });
+    }
+
+    // Update referral status to fully_paid (this triggers commission eligibility)
+    if (lead.referrals && lead.referrals.id) {
+      await supabaseAdmin
+        .from('referrals')
+        .update({
+          status: 'fully_paid',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lead.referrals.id);
+
+      // Create notification for partner
+      await supabaseAdmin
+        .from('partner_notifications')
+        .insert({
+          partner_id: lead.referrals.partner_id,
+          title: 'Payments Completed 🎉',
+          message: `All payments for ${lead.referrals.prospect_company_name} have been completed. Your commission of ₦${(lead.referrals.total_commission_earned || 0).toLocaleString()} is now available for payout.`,
+          type: 'payment_completed',
+          metadata: {
+            referral_id: lead.referrals.id,
+            commission_amount: lead.referrals.total_commission_earned
+          }
+        });
+    }
+
+    // Log activity
+    await supabaseAdmin
+      .from('lead_activities')
+      .insert({
+        lead_id: leadId,
+        type: 'status_changed',
+        notes: 'All payments completed by prospect. Lead converted to customer.',
+        recorded_by: internalUserId
+      });
+
+    // Create audit log
+    await supabaseAdmin
+      .from('audit_logs')
+      .insert({
+        user_id: internalUserId,
+        user_type: 'internal',
+        action: 'update',
+        resource_type: 'leads',
+        resource_id: leadId,
+        old_values: lead,
+        new_values: updatedLead
+      });
+
+    res.json({
+      success: true,
+      message: 'Lead marked as payment completed successfully',
+      data: { lead: updatedLead }
+    });
+
+  } catch (error) {
+    console.error('💥 Payment completion error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while marking payment as complete'
     });
   }
 });

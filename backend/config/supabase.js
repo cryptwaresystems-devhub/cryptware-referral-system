@@ -1,21 +1,26 @@
-
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Validate environment variables
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-  console.error('❌ Missing Supabase environment variables');
-  console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
-  console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? 'Present' : 'Missing');
-  throw new Error('Supabase configuration required');
-}
-
-// Create and export Supabase client with ANON_KEY for auth operations
+// Regular client with ANON_KEY (respects RLS)
 export const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY // Use ANON_KEY instead of SERVICE_ROLE_KEY
+  process.env.SUPABASE_ANON_KEY
 );
 
-console.log('✅ Supabase client initialized successfully with ANON_KEY');
+// Internal client with SERVICE_ROLE_KEY (bypasses RLS)
+export const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY, // Add SUPABASE_SERVICE_ROLE_KEY to your .env
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
+
+
+console.log('✅ Supabase clients initialized');

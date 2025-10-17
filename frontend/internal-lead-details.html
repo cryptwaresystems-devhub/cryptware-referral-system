@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Details | Cryptware Internal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script type="module" src="./js/config.js"></script>
+    <script type="module" src="./js/utils/toast.js"></script>
+    <script type="module" src="./js/auth-manager.js"></script>
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-new { background: #fef3c7; color: #d97706; }
+        .status-contacted { background: #dbeafe; color: #1e40af; }
+        .status-qualified { background: #e0e7ff; color: #3730a3; }
+        .status-proposal { background: #f3e8ff; color: #7c3aed; }
+        .status-negotiation { background: #fef3c7; color: #d97706; }
+        .status-converted { background: #d1fae5; color: #065f46; }
+        .status-lost { background: #fee2e2; color: #dc2626; }
+        .status-fully_paid { background: #dcfce7; color: #166534; }
+
+        .activity-type {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .type-call { background: #dbeafe; color: #1e40af; }
+        .type-email { background: #f3e8ff; color: #7c3aed; }
+        .type-meeting { background: #fef3c7; color: #d97706; }
+        .type-note { background: #e0e7ff; color: #3730a3; }
+        .type-demo { background: #d1fae5; color: #065f46; }
+        .type-proposal_sent { background: #f3e8ff; color: #7c3aed; }
+        .type-follow_up { background: #fef3c7; color: #d97706; }
+        .type-status_changed { background: #e0e7ff; color: #3730a3; }
+        .type-information_updated { background: #d1fae5; color: #065f46; }
+        .type-lead_created { background: #dbeafe; color: #1e40af; }
+
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            .mobile-stack { flex-direction: column; }
+            .mobile-full { width: 100%; }
+            .mobile-text-center { text-align: center; }
+            .mobile-p-4 { padding: 1rem; }
+            .mobile-space-y-2 > * + * { margin-top: 0.5rem; }
+            
+            .table-container {
+                font-size: 0.75rem;
+                overflow-x: auto;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .action-buttons button {
+                width: 100%;
+            }
+        }
+
+        /* Animation for elements */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        /* Loading states */
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Navbar responsive styles */
+        @media (max-width: 640px) {
+            .nav-container {
+                flex-direction: column;
+                height: auto;
+                padding: 1rem;
+            }
+            
+            .nav-links {
+                flex-direction: column;
+                width: 100%;
+                margin-top: 1rem;
+            }
+            
+            .nav-links a {
+                width: 100%;
+                justify-content: center;
+                margin: 0.25rem 0;
+            }
+            
+            .user-info {
+                flex-direction: column;
+                text-align: center;
+                margin-top: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen font-['Inter']">
+    <!-- Enhanced Responsive Navigation -->
+    <nav class="bg-white border-b shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16 nav-container">
+                <div class="flex items-center space-x-4">
+                    <a href="internal-dashboard.html" class="flex items-center text-blue-600 hover:text-blue-700 font-semibold transition">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        <span class="hidden sm:inline">Back to Dashboard</span>
+                        <span class="sm:hidden">Back</span>
+                    </a>
+                </div>
+                
+                <div class="flex items-center space-x-4 nav-links">
+                    <a href="internal-dashboard.html" class="text-gray-600 hover:text-blue-600 transition flex items-center">
+                        <i class="fas fa-tachometer-alt mr-2"></i>
+                        <span class="hidden sm:inline">Dashboard</span>
+                    </a>
+                    <a href="internal-add-lead.html" class="text-gray-600 hover:text-blue-600 transition flex items-center">
+                        <i class="fas fa-plus-circle mr-2"></i>
+                        <span class="hidden sm:inline">Add Lead</span>
+                    </a>
+                    <a href="internal-leads.html" class="text-gray-600 hover:text-blue-600 transition flex items-center">
+                        <i class="fas fa-list mr-2"></i>
+                        <span class="hidden sm:inline">All Leads</span>
+                    </a>
+                    <a href="internal-payouts.html" class="text-gray-600 hover:text-blue-600 transition flex items-center">
+                        <i class="fas fa-money-bill-wave mr-2"></i>
+                        <span class="hidden sm:inline">Payouts</span>
+                    </a>
+                </div>
+                
+                <div class="flex items-center space-x-3 user-info">
+                    <div class="text-right">
+                        <span class="text-sm text-gray-600" id="userName">Loading...</span>
+                        <div class="flex items-center justify-center mt-1">
+                            <i class="fas fa-shield-alt text-green-500 mr-1 text-xs"></i>
+                            <span class="text-xs text-green-600">Internal Access</span>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition flex items-center">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        <span class="hidden sm:inline">Sign Out</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 fade-in">
+            <div class="mb-4 md:mb-0">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Lead Details</h1>
+                <p class="text-gray-600 mt-1">Comprehensive view of lead information and activities</p>
+            </div>
+            <div class="flex space-x-3 action-buttons mobile-full">
+                <button id="addActivityBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center text-sm">
+                    <i class="fas fa-plus mr-2"></i> Add Activity
+                </button>
+                <button id="updateStatusBtn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center text-sm">
+                    <i class="fas fa-sync-alt mr-2"></i> Update Status
+                </button>
+                <button id="recordPaymentBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center text-sm">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Record Payment
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="glass-card rounded-2xl p-8 mb-6">
+            <div class="space-y-4">
+                <div class="loading-skeleton h-6 rounded w-3/4"></div>
+                <div class="loading-skeleton h-4 rounded"></div>
+                <div class="loading-skeleton h-4 rounded w-1/2"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                    <div class="loading-skeleton h-32 rounded"></div>
+                    <div class="loading-skeleton h-32 rounded"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lead Information Grid -->
+        <div id="leadContent" class="hidden">
+            <!-- Payment Status Banner -->
+            <div id="paymentStatus"></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Lead Details Card -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Basic Information -->
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-building text-blue-500 mr-3"></i>
+                                Company Information
+                            </h2>
+                            <span id="leadStatusBadge" class="status-badge status-new">New</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                                <p id="companyName" class="text-gray-900 font-semibold">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                                <p id="industry" class="text-gray-600">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+                                <p id="contactName" class="text-gray-900 font-semibold">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                                <p id="jobTitle" class="text-gray-600">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <p id="email" class="text-blue-600 font-medium">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                <p id="phone" class="text-gray-600">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ERP & Business Details -->
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-laptop-code text-purple-500 mr-3"></i>
+                            ERP & Business Details
+                        </h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Current ERP System</label>
+                                <p id="erpSystem" class="text-gray-900 font-semibold">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Implementation Timeline</label>
+                                <p id="implementationTimeline" class="text-gray-600">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Deal Value</label>
+                                <p id="estimatedValue" class="text-green-600 font-bold text-lg">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Lead Source</label>
+                                <p id="leadSource" class="text-gray-600">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Activities Timeline -->
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-history text-orange-500 mr-3"></i>
+                                Activity Timeline
+                            </h2>
+                            <span class="bg-blue-100 text-blue-600 px-2 py-1 rounded text-xs">Live</span>
+                        </div>
+                        
+                        <div id="activitiesList" class="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+                            <!-- Activities will be populated here -->
+                        </div>
+                        
+                        <div id="noActivities" class="text-center py-8 hidden">
+                            <i class="fas fa-inbox text-gray-300 text-4xl mb-3"></i>
+                            <p class="text-gray-500">No activities recorded yet</p>
+                            <button id="addFirstActivity" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition text-sm">
+                                <i class="fas fa-plus mr-2"></i>Add First Activity
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="space-y-6">
+                    <!-- Referral Information -->
+                    <div id="referralInfo" class="glass-card rounded-2xl p-6 fade-in hidden">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-handshake text-green-500 mr-3"></i>
+                            Referral Information
+                        </h2>
+                        
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Referral Code</label>
+                                <p id="referralCode" class="text-gray-900 font-mono font-semibold">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Partner Company</label>
+                                <p id="partnerCompany" class="text-gray-900 font-semibold">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Partner Contact</label>
+                                <p id="partnerContact" class="text-gray-600">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Partner Email</label>
+                                <p id="partnerEmail" class="text-blue-600">-</p>
+                            </div>
+                            <div id="referralStatus" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Referral Status</label>
+                                <p id="referralStatusText" class="text-gray-600">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assigned To & Timeline -->
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-user-check text-indigo-500 mr-3"></i>
+                            Assignment & Timeline
+                        </h2>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                                <p id="assignedTo" class="text-gray-900 font-semibold">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Created Date</label>
+                                <p id="createdAt" class="text-gray-600">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Contact</label>
+                                <p id="lastContact" class="text-gray-600">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Updated</label>
+                                <p id="updatedAt" class="text-gray-600">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Summary -->
+                    <div id="paymentSummary" class="glass-card rounded-2xl p-6 fade-in hidden">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-chart-line text-green-500 mr-3"></i>
+                            Payment Summary
+                        </h2>
+                        
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Total Payments:</span>
+                                <span id="totalPayments" class="font-semibold">₦0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Partner Commission:</span>
+                                <span id="totalCommission" class="font-semibold text-green-600">₦0</span>
+                            </div>
+                            <div class="border-t pt-2">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 font-medium">Net Revenue:</span>
+                                    <span id="netRevenue" class="font-bold text-blue-600">₦0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-bolt text-yellow-500 mr-3"></i>
+                            Quick Actions
+                        </h2>
+                        
+                        <div class="space-y-3">
+                            <button id="sendEmailBtn" class="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium py-2 px-4 rounded-lg transition flex items-center justify-center text-sm">
+                                <i class="fas fa-envelope mr-2"></i> Send Email
+                            </button>
+                            <button id="scheduleCallBtn" class="w-full bg-green-50 text-green-600 hover:bg-green-100 font-medium py-2 px-4 rounded-lg transition flex items-center justify-center text-sm">
+                                <i class="fas fa-phone mr-2"></i> Schedule Call
+                            </button>
+                            <button id="addNoteBtn" class="w-full bg-purple-50 text-purple-600 hover:bg-purple-100 font-medium py-2 px-4 rounded-lg transition flex items-center justify-center text-sm">
+                                <i class="fas fa-sticky-note mr-2"></i> Add Note
+                            </button>
+                            <button id="markPaymentCompleteBtn" class="w-full bg-green-50 text-green-600 hover:bg-green-100 font-medium py-2 px-4 rounded-lg transition flex items-center justify-center text-sm">
+                                <i class="fas fa-check-circle mr-2"></i> Mark Payment Complete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            <div id="paymentHistory" class="glass-card rounded-2xl overflow-hidden shadow-lg fade-in mb-6 hidden">
+                <div class="bg-gradient-to-r from-green-600 to-green-700 px-4 py-4 sm:px-6">
+                    <div class="flex justify-between items-center mobile-stack">
+                        <div>
+                            <h2 class="text-lg sm:text-xl font-semibold text-white flex items-center">
+                                <i class="fas fa-money-check-alt mr-2"></i>Payment History
+                            </h2>
+                            <p class="text-green-100 text-sm">All recorded payments for this lead</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-green-500 text-white px-2 py-1 rounded text-xs">Live</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-container custom-scrollbar">
+                    <table class="w-full">
+                        <thead class="bg-green-50">
+                            <tr>
+                                <th class="px-3 py-3 text-left text-xs font-semibold text-green-600 uppercase tracking-wider">Date</th>
+                                <th class="px-3 py-3 text-left text-xs font-semibold text-green-600 uppercase tracking-wider">Amount</th>
+                                <th class="px-3 py-3 text-left text-xs font-semibold text-green-600 uppercase tracking-wider">Commission</th>
+                                <th class="px-3 py-3 text-left text-xs font-semibold text-green-600 uppercase tracking-wider">Method</th>
+                                <th class="px-3 py-3 text-left text-xs font-semibold text-green-600 uppercase tracking-wider">Status</th>
+                                <th class="px-3 py-3 text-left text-xs font-semibold text-green-600 uppercase tracking-wider">Reference</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100" id="paymentsTableBody">
+                            <!-- Payments will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="noPayments" class="px-6 py-12 text-center hidden">
+                    <div class="text-green-200 text-4xl mb-4">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <h3 class="text-gray-600 text-lg mb-2">No payments recorded yet</h3>
+                    <p class="text-gray-500 text-sm mb-4">Record the first payment for this lead</p>
+                    <button id="recordFirstPayment" class="bg-green-600 hover:bg-green-700 inline-flex items-center px-4 py-2 text-white text-sm font-semibold rounded-lg">
+                        <i class="fas fa-plus mr-2"></i>Record First Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="glass-card rounded-2xl p-8 text-center hidden">
+            <div class="text-red-500 text-4xl mb-4">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Failed to Load Lead</h3>
+            <p class="text-gray-600 mb-4" id="errorMessage">There was an error loading the lead details.</p>
+            <button id="retryButton" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                <i class="fas fa-redo mr-2"></i>Try Again
+            </button>
+        </div>
+    </main>
+
+    <!-- Add Activity Modal -->
+    <div id="addActivityModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-auto">
+            <div class="modal-header p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-plus-circle text-blue-500 mr-2"></i>Add Activity
+                </h3>
+                <button onclick="leadDetails.hideAddActivityModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Activity Type *</label>
+                        <select id="activityType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="">Select activity type</option>
+                            <option value="call">Phone Call</option>
+                            <option value="email">Email</option>
+                            <option value="meeting">Meeting</option>
+                            <option value="demo">Demo</option>
+                            <option value="proposal_sent">Proposal Sent</option>
+                            <option value="follow_up">Follow Up</option>
+                            <option value="note">Note</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Notes *</label>
+                        <textarea id="activityNotes" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm resize-none" placeholder="Enter activity details..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer p-4 border-t flex justify-end space-x-3">
+                <button onclick="leadDetails.hideAddActivityModal()" class="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded-lg transition text-sm">
+                    Cancel
+                </button>
+                <button onclick="leadDetails.submitActivity()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition flex items-center text-sm">
+                    <i class="fas fa-save mr-2"></i>Save Activity
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Status Modal -->
+    <div id="updateStatusModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-auto">
+            <div class="modal-header p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-sync-alt text-green-500 mr-2"></i>Update Lead Status
+                </h3>
+                <button onclick="leadDetails.hideUpdateStatusModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">New Status *</label>
+                        <select id="newStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="">Select status</option>
+                            <option value="new">New</option>
+                            <option value="contacted">Contacted</option>
+                            <option value="qualified">Qualified</option>
+                            <option value="proposal">Proposal</option>
+                            <option value="negotiation">Negotiation</option>
+                            <option value="converted">Converted</option>
+                            <option value="lost">Lost</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea id="statusNotes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm resize-none" placeholder="Optional notes about status change..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer p-4 border-t flex justify-end space-x-3">
+                <button onclick="leadDetails.hideUpdateStatusModal()" class="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded-lg transition text-sm">
+                    Cancel
+                </button>
+                <button onclick="leadDetails.submitStatusUpdate()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition flex items-center text-sm">
+                    <i class="fas fa-check mr-2"></i>Update Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Record Payment Modal -->
+    <div id="recordPaymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md mx-auto">
+            <div class="modal-header p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-money-bill-wave text-purple-500 mr-2"></i>Record Payment
+                </h3>
+                <button onclick="leadDetails.hideRecordPaymentModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount (₦) *</label>
+                        <input type="number" id="paymentAmount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="0.00" min="0" step="1000">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Date *</label>
+                        <input type="date" id="paymentDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                        <select id="paymentMethod" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="card">Credit/Debit Card</option>
+                            <option value="cash">Cash</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference</label>
+                        <input type="text" id="paymentReference" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="Optional reference number">
+                    </div>
+                    <div id="commissionPreview" class="bg-blue-50 p-3 rounded-lg text-sm text-blue-700 hidden">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <span>Partner commission: <strong id="commissionAmount">₦0</strong> (5%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer p-4 border-t flex justify-end space-x-3">
+                <button onclick="leadDetails.hideRecordPaymentModal()" class="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded-lg transition text-sm">
+                    Cancel
+                </button>
+                <button onclick="leadDetails.submitPayment()" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition flex items-center text-sm">
+                    <i class="fas fa-save mr-2"></i>Record Payment
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/internal-lead-details.js"></script>
+</body>
+</html>

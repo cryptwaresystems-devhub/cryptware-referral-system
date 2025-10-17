@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../config/supabase.js';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { authenticateInternal } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -9,170 +9,126 @@ const router = express.Router();
 // @access  Private (Internal)
 router.post('/', authenticateInternal, async (req, res) => {
   try {
-    let { 
-      referral_id, 
-      lead_id, 
-      amount, 
-      payment_date, 
-      payment_method, 
-      transaction_reference, 
-      notes 
+    const internalUserId = req.internalUser.id;
+    const {
+      lead_id,
+      amount,
+      payment_method = 'bank_transfer',
+      payment_date,
+      transaction_reference
     } = req.body;
 
-    const internalUserId = req.internalUser.id;
+    console.log(`💰 Recording payment: ₦${amount} for lead: ${lead_id}`);
 
-    console.log(`💰 Recording payment: ₦${amount} for referral: ${referral_id}`);
-
-    // ==================== VALIDATION ====================
-    if (!amount || amount <= 0 || typeof amount !== 'number') {
+    // Validation
+    if (!lead_id || !amount || !payment_date) {
       return res.status(400).json({
         success: false,
-        message: 'Valid payment amount is required and must be a positive number'
+        message: 'Required fields: lead_id, amount, payment_date'
       });
     }
 
-    if (!referral_id && !lead_id) {
+    if (amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Either referral_id or lead_id is required'
+        message: 'Amount must be greater than 0'
       });
     }
 
-    // ==================== REFERRAL VERIFICATION ====================
-    let finalReferralId = referral_id;
-    let prospectCompanyName = 'Unknown Company';
+    // Get the lead to find the referral_id
+    const { data: lead, error: leadError } = await supabaseAdmin
+      .from('leads')
+      .select('id, referral_id, company_name, contact_name, referral_code')
+      .eq('id', lead_id)
+      .single();
 
-    if (finalReferralId) {
-      const { data: referralData, error: referralError } = await supabase
-        .from('referrals')
-        .select('id, partner_id, prospect_company_name')
-        .eq('id', finalReferralId)
-        .single();
-
-      if (referralError || !referralData) {
-        return res.status(404).json({
-          success: false,
-          message: 'Referral not found'
-        });
-      }
-      prospectCompanyName = referralData.prospect_company_name;
+    if (leadError || !lead) {
+      console.error('❌ Lead not found:', leadError);
+      return res.status(404).json({
+        success: false,
+        message: 'Lead not found'
+      });
     }
 
-    // ==================== LEAD VERIFICATION ====================
-    let leadCompanyName = 'Unknown Lead';
-
-    if (lead_id) {
-      const { data: leadData, error: leadError } = await supabase
-        .from('leads')
-        .select('id, company_name, referral_id')
-        .eq('id', lead_id)
-        .single();
-
-      if (leadError || !leadData) {
-        return res.status(404).json({
-          success: false,
-          message: 'Lead not found'
-        });
-      }
-
-      leadCompanyName = leadData.company_name;
-      
-      // Use lead's referral_id if available and no referral_id provided
-      if (leadData.referral_id && !finalReferralId) {
-        finalReferralId = leadData.referral_id;
-        
-        // Get referral details for company name
-        const { data: referralFromLead } = await supabase
-          .from('referrals')
-          .select('prospect_company_name')
-          .eq('id', finalReferralId)
-          .single();
-          
-        if (referralFromLead) {
-          prospectCompanyName = referralFromLead.prospect_company_name;
-        }
-      }
+    if (!lead.referral_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'This lead does not have a referral and cannot have payments recorded.'
+      });
     }
 
-    // ==================== PAYMENT CREATION ====================
-    const paymentData = {
-      referral_id: finalReferralId || null,
-      lead_id: lead_id || null,
-      amount: Math.round(amount * 100) / 100, // Ensure 2 decimal places
-      commission_calculated: 0, // Will be calculated by database trigger
-      payment_date: payment_date || new Date().toISOString().split('T')[0],
-      payment_method: payment_method || 'bank_transfer',
-      transaction_reference: transaction_reference || `PAY-${Date.now()}`,
-      status: 'confirmed',
-      recorded_by: internalUserId,
-      notes: notes || `Payment recorded for ${prospectCompanyName}`
-    };
+    console.log(`🔍 Found lead: ${lead.company_name} with referral_id: ${lead.referral_id}`);
 
-    const { data: payment, error: paymentError } = await supabase
+    // Calculate commission (5%)
+    const commission_calculated = Math.round(amount * 0.05);
+
+    // Record the payment in client_payments
+    const { data: payment, error: paymentError } = await supabaseAdmin
       .from('client_payments')
-      .insert(paymentData)
-      .select(`
-        *,
-        referrals:referral_id (
-          prospect_company_name,
-          referral_code,
-          partners:partner_id (company_name, email)
-        ),
-        leads:lead_id (company_name, contact_name)
-      `)
+      .insert({
+        referral_id: lead.referral_id,
+        amount: amount,
+        commission_calculated: commission_calculated,
+        payment_date: payment_date,
+        payment_method: payment_method,
+        transaction_reference: transaction_reference,
+        status: 'confirmed',
+        recorded_by: internalUserId
+      })
+      .select()
       .single();
 
     if (paymentError) {
-      console.error('❌ Payment creation error:', paymentError);
+      console.error('❌ Payment recording error:', paymentError);
       return res.status(500).json({
         success: false,
         message: 'Failed to record payment: ' + paymentError.message
       });
     }
 
-    console.log(`✅ Payment recorded: ${payment.id}, Commission: ₦${payment.commission_calculated}`);
+    console.log(`✅ Payment recorded: ${payment.id}`);
+    console.log(`💰 Commission calculated: ₦${commission_calculated}`);
 
-    // ==================== ACTIVITY LOGGING ====================
-    const activityPromises = [];
+    // Create audit log
+    await supabaseAdmin
+      .from('audit_logs')
+      .insert({
+        user_id: internalUserId,
+        user_type: 'internal',
+        action: 'create',
+        resource_type: 'client_payments',
+        resource_id: payment.id,
+        new_values: payment
+      });
 
-    // Log lead activity if lead exists
-    if (lead_id) {
-      activityPromises.push(
-        supabase
-          .from('lead_activities')
-          .insert({
-            lead_id: lead_id,
-            type: 'payment_received',
-            notes: `Payment of ₦${amount.toLocaleString()} recorded${transaction_reference ? ` (Ref: ${transaction_reference})` : ''}`,
-            recorded_by: internalUserId
-          })
-      );
+    // Create notification for partner
+    const { data: referral } = await supabaseAdmin
+      .from('referrals')
+      .select('partner_id, prospect_company_name')
+      .eq('id', lead.referral_id)
+      .single();
+
+    if (referral && referral.partner_id) {
+      await supabaseAdmin
+        .from('partner_notifications')
+        .insert({
+          partner_id: referral.partner_id,
+          title: 'Payment Received',
+          message: `A payment of ₦${amount.toLocaleString()} was recorded for ${referral.prospect_company_name}. Your commission: ₦${commission_calculated.toLocaleString()}`,
+          type: 'payment_received'
+        });
     }
 
-    // Audit log
-    activityPromises.push(
-      supabase
-        .from('audit_logs')
-        .insert({
-          user_id: internalUserId,
-          user_type: 'internal',
-          action: 'create',
-          resource_type: 'client_payments',
-          resource_id: payment.id,
-          new_values: payment
-        })
-    );
-
-    await Promise.all(activityPromises);
-
-    // ==================== SUCCESS RESPONSE ====================
     res.status(201).json({
       success: true,
-      message: 'Payment recorded successfully',
+      message: 'Payment recorded successfully!',
       data: {
         payment,
-        commission_calculated: payment.commission_calculated,
-        commission_rate: '5%'
+        commission: commission_calculated,
+        lead: {
+          company_name: lead.company_name,
+          contact_name: lead.contact_name
+        }
       }
     });
 
@@ -186,58 +142,53 @@ router.post('/', authenticateInternal, async (req, res) => {
 });
 
 // @route   GET /api/payments
-// @desc    INTERNAL: List all payments with advanced filtering and pagination
+// @desc    Get payment history with filtering
 // @access  Private (Internal)
 router.get('/', authenticateInternal, async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
+    const { 
+      page = 1, 
+      limit = 20, 
       referral_id,
       lead_id,
-      status = 'confirmed',
       date_from,
-      date_to,
-      payment_method,
-      min_amount,
-      max_amount
+      date_to 
     } = req.query;
 
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(Math.max(1, parseInt(limit)), 100); // Cap at 100
-    const offset = (pageNum - 1) * limitNum;
+    const offset = (page - 1) * limit;
 
-    console.log(`📋 Fetching payments, page: ${pageNum}, limit: ${limitNum}`);
+    console.log(`📋 Fetching payments, page: ${page}`);
 
-    // ==================== QUERY BUILDING ====================
-    let query = supabase
+    // Build query
+    let query = supabaseAdmin
       .from('client_payments')
       .select(`
         *,
-        referrals:referral_id (
+        referrals!inner (
+          id,
           prospect_company_name,
           referral_code,
-          partners:partner_id (company_name, contact_name)
-        ),
-        leads:lead_id (
-          company_name,
-          contact_name,
-          status as lead_status
-        ),
-        internal_users:recorded_by (name, email)
+          partners!inner (
+            company_name,
+            contact_name
+          )
+        )
       `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limitNum - 1);
+      .order('payment_date', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    // ==================== FILTER APPLICATION ====================
-    if (referral_id) query = query.eq('referral_id', referral_id);
-    if (lead_id) query = query.eq('lead_id', lead_id);
-    if (status) query = query.eq('status', status);
-    if (payment_method) query = query.eq('payment_method', payment_method);
-    if (date_from) query = query.gte('payment_date', date_from);
-    if (date_to) query = query.lte('payment_date', date_to);
-    if (min_amount) query = query.gte('amount', parseFloat(min_amount));
-    if (max_amount) query = query.lte('amount', parseFloat(max_amount));
+    // Apply filters
+    if (referral_id) {
+      query = query.eq('referral_id', referral_id);
+    }
+
+    if (date_from) {
+      query = query.gte('payment_date', date_from);
+    }
+
+    if (date_to) {
+      query = query.lte('payment_date', date_to);
+    }
 
     const { data: payments, error, count } = await query;
 
@@ -249,35 +200,15 @@ router.get('/', authenticateInternal, async (req, res) => {
       });
     }
 
-    // ==================== RESPONSE ENHANCEMENT ====================
-    const enhancedPayments = (payments || []).map(payment => ({
-      ...payment,
-      _links: {
-        self: `/api/payments/${payment.id}`,
-        referral: payment.referral_id ? `/api/referrals/${payment.referral_id}` : null,
-        lead: payment.lead_id ? `/api/leads/${payment.lead_id}` : null
-      }
-    }));
-
-    // ==================== PAGINATION METADATA ====================
-    const totalCount = count || 0;
-    const totalPages = Math.ceil(totalCount / limitNum);
-
     res.json({
       success: true,
       data: {
-        payments: enhancedPayments,
+        payments: payments || [],
         pagination: {
-          current_page: pageNum,
-          per_page: limitNum,
-          total_items: totalCount,
-          total_pages: totalPages,
-          has_next: pageNum < totalPages,
-          has_prev: pageNum > 1
-        },
-        summary: {
-          total_amount: enhancedPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-          total_commission: enhancedPayments.reduce((sum, p) => sum + (p.commission_calculated || 0), 0)
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count || 0,
+          pages: Math.ceil((count || 0) / limit)
         }
       }
     });
@@ -290,6 +221,7 @@ router.get('/', authenticateInternal, async (req, res) => {
     });
   }
 });
+
 
 // @route   GET /api/payments/lead/:leadId
 // @desc    INTERNAL: Comprehensive payments for specific lead

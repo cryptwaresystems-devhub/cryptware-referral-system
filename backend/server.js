@@ -31,6 +31,7 @@ import internalRoutes from './routes/internal.js';
 import adminRoutes from './routes/admin.js';
 import reportsRoutes from './routes/reports.js';
 import notificationsRoutes from './routes/notifications.js';
+import payoutsRoutes from './routes/payouts.js';
 
 // Import middleware
 // import { securityHeaders, corsConfig, requestLogger } from './middleware/security.js';
@@ -46,7 +47,7 @@ app.use(cors({
     'http://localhost:5500'
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -78,6 +79,7 @@ app.use('/api/partner', partnerRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/commissions', commissionsRoutes);
 app.use('/api/deals', dealsRoutes);
+app.use('/api/payouts', payoutsRoutes);
 
 // Phase 3: Internal & Admin Tools
 app.use('/api/internal', internalRoutes);

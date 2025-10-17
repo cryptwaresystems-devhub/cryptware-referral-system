@@ -9,7 +9,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script type="module" src="./js/config.js"></script>
-    <script type="module" src="./js/toast.js"></script>
+    <script type="module" src="./js/utils/toast.js"></script>
+    <script type="module" src="./js/auth-manager.js"></script>
     <style>
         .glass-card {
             background: rgba(255, 255, 255, 0.95);
@@ -80,7 +81,8 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen font-['Inter']">
-    <!-- Navigation -->
+     <!-- Enhanced Mobile-First Navigation -->
+     <!-- Navigation -->
     <nav class="bg-white border-b shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
@@ -205,11 +207,11 @@
                     Commission Breakdown
                 </h2>
                 <div class="flex space-x-3">
-                    <button onclick="downloadCommissionReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center transition-colors">
+                    <button onclick="commissionReport.exportCommissionReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm flex items-center transition-colors">
                         <i class="fas fa-download mr-2"></i>
                         Export CSV
                     </button>
-                    <button onclick="refreshCommissionData()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm flex items-center transition-colors">
+                    <button onclick="commissionReport.refreshCommissionData()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm flex items-center transition-colors">
                         <i class="fas fa-sync-alt mr-2"></i>
                         Refresh
                     </button>
@@ -263,7 +265,7 @@
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Company & Referral</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Deal Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Deal Value</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Agreed Value</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Commission</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Payout Status</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
@@ -326,7 +328,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div class="flex items-center">
                     <i class="fas fa-envelope text-blue-600 mr-2"></i>
-                    <span class="text-blue-800">partners@cryptware.com</span>
+                    <span class="text-blue-800">info@cryptwaresystems.com</span>
                 </div>
                 <div class="flex items-center">
                     <i class="fas fa-phone text-blue-600 mr-2"></i>
@@ -341,7 +343,7 @@
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-bold text-gray-900">Request Payout</h3>
-                <button onclick="closePayoutModal()" class="text-gray-500 hover:text-gray-700 transition-colors">
+                <button onclick="commissionReport.closePayoutModal()" class="text-gray-500 hover:text-gray-700 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -388,10 +390,10 @@
             </div>
 
             <div class="flex justify-end space-x-3 mt-6">
-                <button onclick="closePayoutModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">
+                <button onclick="commissionReport.closePayoutModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors">
                     Cancel
                 </button>
-                <button onclick="submitPayoutRequest()" id="submitPayoutBtn" 
+                <button onclick="commissionReport.submitPayoutRequest()" id="submitPayoutBtn" 
                         class="trust-badge text-white font-semibold py-2 px-6 rounded-lg transition flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
                     <i class="fas fa-paper-plane mr-2"></i>
                     <span class="btn-text">Request Payout</span>
@@ -403,352 +405,6 @@
         </div>
     </div>
 
-    <script>
-        let commissionData = null;
-        let currentPartner = null;
-
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', async function() {
-            await checkAuth();
-            await loadCommissionReport();
-        });
-
-        // Authentication check
-        async function checkAuth() {
-            try {
-                const partner = JSON.parse(localStorage.getItem('currentPartner'));
-                const token = localStorage.getItem('authToken');
-                
-                if (!partner || !token) {
-                    Toast.error('Please log in to view commission report');
-                    setTimeout(() => window.location.href = 'login.html', 2000);
-                    return;
-                }
-
-                currentPartner = partner;
-                document.getElementById('partnerCompanyName').textContent = partner.company_name;
-                
-            } catch (error) {
-                console.error('Auth check error:', error);
-                Toast.error('Authentication failed');
-                setTimeout(() => window.location.href = 'login.html', 2000);
-            }
-        }
-
-        // Load commission report data
-        async function loadCommissionReport() {
-            try {
-                showLoadingState();
-                
-                const response = await apiClient.get('/commissions/partner');
-                
-                if (response.data.success) {
-                    commissionData = response.data.data;
-                    updateCommissionUI();
-                } else {
-                    throw new Error(response.data.message || 'Failed to load commission data');
-                }
-                
-            } catch (error) {
-                console.error('Load commission error:', error);
-                Toast.error(error.response?.data?.message || 'Failed to load commission report');
-                showEmptyState();
-            }
-        }
-
-        // Update UI with commission data
-        function updateCommissionUI() {
-            if (!commissionData) return;
-
-            const { summary, breakdown, payout_history } = commissionData;
-
-            // Update summary cards
-            document.getElementById('totalCommission').textContent = formatCurrency(summary.total_commission_earned);
-            document.getElementById('availablePayout').textContent = formatCurrency(summary.available_for_payout);
-            document.getElementById('pendingCommission').textContent = formatCurrency(summary.pending_commission);
-            document.getElementById('totalPaidOut').textContent = formatCurrency(summary.total_paid_out);
-
-            // Update commission table
-            updateCommissionTable(breakdown);
-
-            // Update payout history
-            updatePayoutHistory(payout_history);
-
-            // Show/hide empty states
-            document.getElementById('emptyState').classList.toggle('hidden', breakdown.length > 0);
-            document.getElementById('emptyPayoutState').classList.toggle('hidden', payout_history.length > 0);
-            document.getElementById('payoutCount').textContent = `${payout_history.length} payouts`;
-        }
-
-        // Update commission table
-        function updateCommissionTable(breakdown) {
-            const tableBody = document.getElementById('commissionTableBody');
-            tableBody.innerHTML = '';
-
-            if (!breakdown || breakdown.length === 0) {
-                return;
-            }
-
-            breakdown.forEach(item => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50 transition-colors';
-                
-                const statusBadge = getStatusBadge(item.status);
-                const payoutStatus = item.commission_eligible ? 
-                    '<span class="status-badge status-paid">Eligible</span>' : 
-                    '<span class="status-badge status-pending">Pending</span>';
-
-                const actionButton = item.commission_eligible && item.commission_earned > 0 ? 
-                    `<button onclick="openPayoutModal('${item.id}', ${item.commission_earned})" 
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center transition-colors">
-                        <i class="fas fa-paper-plane mr-1"></i>Request
-                    </button>` : 
-                    '<span class="text-gray-400 text-sm">Not eligible</span>';
-
-                row.innerHTML = `
-                    <td class="px-4 py-3">
-                        <div class="font-medium text-gray-900">${item.prospect_company_name}</div>
-                        <div class="text-sm text-gray-500">${item.referral_code}</div>
-                    </td>
-                    <td class="px-4 py-3">${statusBadge}</td>
-                    <td class="px-4 py-3 font-medium">${formatCurrency(item.total_deal_value)}</td>
-                    <td class="px-4 py-3 font-semibold text-green-600">${formatCurrency(item.commission_earned)}</td>
-                    <td class="px-4 py-3">${payoutStatus}</td>
-                    <td class="px-4 py-3">${actionButton}</td>
-                `;
-                
-                tableBody.appendChild(row);
-            });
-        }
-
-        // Update payout history
-        function updatePayoutHistory(payouts) {
-            const container = document.getElementById('payoutHistory');
-            container.innerHTML = '';
-
-            if (!payouts || payouts.length === 0) {
-                return;
-            }
-
-            payouts.forEach(payout => {
-                const payoutElement = document.createElement('div');
-                payoutElement.className = 'bg-white rounded-lg border border-gray-200 p-4';
-                
-                const statusBadge = getPayoutStatusBadge(payout.status);
-                const processedDate = payout.processed_at ? 
-                    new Date(payout.processed_at).toLocaleDateString() : 'Pending';
-
-                payoutElement.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="font-semibold text-gray-900">${formatCurrency(payout.amount)}</div>
-                                ${statusBadge}
-                            </div>
-                            <div class="text-sm text-gray-600 mb-2">
-                                <i class="fas fa-building mr-1"></i>
-                                ${payout.referrals?.prospect_company_name || 'Unknown Company'}
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                                <div>
-                                    <i class="fas fa-calendar mr-1"></i>
-                                    Requested: ${new Date(payout.requested_at).toLocaleDateString()}
-                                </div>
-                                <div>
-                                    <i class="fas fa-check-circle mr-1"></i>
-                                    Processed: ${processedDate}
-                                </div>
-                                ${payout.payment_reference ? `
-                                <div class="col-span-2">
-                                    <i class="fas fa-receipt mr-1"></i>
-                                    Reference: ${payout.payment_reference}
-                                </div>
-                                ` : ''}
-                            </div>
-                            ${payout.notes ? `
-                            <div class="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
-                                <i class="fas fa-sticky-note mr-1"></i>${payout.notes}
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-                
-                container.appendChild(payoutElement);
-            });
-        }
-
-        // Payout modal functions
-        function openPayoutModal(referralId, amount) {
-            const modal = document.getElementById('payoutModal');
-            const form = modal.querySelector('.bg-white');
-            
-            // Populate referral select
-            const select = document.getElementById('payoutReferralSelect');
-            select.innerHTML = '<option value="">Choose eligible referral...</option>';
-            
-            if (commissionData?.breakdown) {
-                commissionData.breakdown
-                    .filter(item => item.commission_eligible && item.commission_earned > 0)
-                    .forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = item.id;
-                        option.textContent = `${item.prospect_company_name} - ${formatCurrency(item.commission_earned)}`;
-                        option.selected = item.id === referralId;
-                        select.appendChild(option);
-                    });
-            }
-            
-            document.getElementById('payoutAmount').value = amount;
-            
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                form.classList.remove('scale-95', 'opacity-0');
-                form.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        }
-
-        function closePayoutModal() {
-            const modal = document.getElementById('payoutModal');
-            const form = modal.querySelector('.bg-white');
-            
-            form.classList.remove('scale-100', 'opacity-100');
-            form.classList.add('scale-95', 'opacity-0');
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                document.getElementById('payoutNotes').value = '';
-            }, 300);
-        }
-
-        async function submitPayoutRequest() {
-            const referralId = document.getElementById('payoutReferralSelect').value;
-            const amount = document.getElementById('payoutAmount').value;
-            const notes = document.getElementById('payoutNotes').value;
-            const submitBtn = document.getElementById('submitPayoutBtn');
-
-            if (!referralId) {
-                Toast.error('Please select a referral');
-                return;
-            }
-
-            setLoading(submitBtn, true);
-
-            try {
-                const response = await apiClient.post('/payouts/request', {
-                    referral_id: referralId,
-                    amount: parseFloat(amount),
-                    notes: notes
-                });
-
-                if (response.data.success) {
-                    Toast.success('Payout request submitted successfully!');
-                    closePayoutModal();
-                    await loadCommissionReport(); // Refresh data
-                } else {
-                    throw new Error(response.data.message);
-                }
-            } catch (error) {
-                console.error('Payout request error:', error);
-                Toast.error(error.response?.data?.message || 'Failed to submit payout request');
-            } finally {
-                setLoading(submitBtn, false);
-            }
-        }
-
-        // Utility functions
-        function formatCurrency(amount) {
-            return '₦' + (amount || 0).toLocaleString();
-        }
-
-        function getStatusBadge(status) {
-            const statusMap = {
-                'code_sent': ['bg-blue-100 text-blue-800', 'Code Sent'],
-                'contacted': ['bg-yellow-100 text-yellow-800', 'Contacted'],
-                'meeting_scheduled': ['bg-indigo-100 text-indigo-800', 'Meeting Scheduled'],
-                'proposal_sent': ['bg-purple-100 text-purple-800', 'Proposal Sent'],
-                'negotiation': ['bg-orange-100 text-orange-800', 'Negotiation'],
-                'won': ['bg-green-100 text-green-800', 'Won'],
-                'fully_paid': ['bg-green-100 text-green-800', 'Fully Paid'],
-                'lost': ['bg-red-100 text-red-800', 'Lost']
-            };
-            
-            const [bgColor, text] = statusMap[status] || ['bg-gray-100 text-gray-800', status];
-            return `<span class="status-badge ${bgColor}">${text}</span>`;
-        }
-
-        function getPayoutStatusBadge(status) {
-            const statusMap = {
-                'pending': ['status-pending', 'Pending'],
-                'processing': ['status-processing', 'Processing'],
-                'paid': ['status-paid', 'Paid'],
-                'failed': ['status-failed', 'Failed'],
-                'cancelled': ['status-pending', 'Cancelled']
-            };
-            
-            const [className, text] = statusMap[status] || ['status-pending', status];
-            return `<span class="status-badge ${className}">${text}</span>`;
-        }
-
-        function setLoading(button, isLoading) {
-            const btnText = button.querySelector('.btn-text');
-            const spinner = button.querySelector('.loading-spinner');
-            
-            if (isLoading) {
-                button.disabled = true;
-                btnText.textContent = 'Processing...';
-                spinner.classList.remove('hidden');
-            } else {
-                button.disabled = false;
-                btnText.textContent = 'Request Payout';
-                spinner.classList.add('hidden');
-            }
-        }
-
-        function showLoadingState() {
-            document.getElementById('commissionTableBody').innerHTML = `
-                <tr>
-                    <td colspan="6" class="px-4 py-8 text-center">
-                        <div class="flex items-center justify-center">
-                            <div class="loading-spinner text-blue-600 mr-3">
-                                <i class="fas fa-spinner"></i>
-                            </div>
-                            <span class="text-gray-600">Loading commission data...</span>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
-
-        function showEmptyState() {
-            document.getElementById('emptyState').classList.remove('hidden');
-            document.getElementById('commissionTableBody').innerHTML = '';
-        }
-
-        // Export and refresh functions
-        async function downloadCommissionReport() {
-            try {
-                Toast.info('Preparing commission report for download...');
-                // In a real implementation, this would generate a CSV/PDF
-                setTimeout(() => {
-                    Toast.success('Commission report downloaded successfully!');
-                }, 1500);
-            } catch (error) {
-                Toast.error('Failed to download report');
-            }
-        }
-
-        async function refreshCommissionData() {
-            await loadCommissionReport();
-            Toast.success('Commission data refreshed!');
-        }
-
-        // Close modal on outside click
-        document.getElementById('payoutModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closePayoutModal();
-            }
-        });
-    </script>
+   <script src="js/commission-report.js" type="module"></script>
 </body>
 </html>

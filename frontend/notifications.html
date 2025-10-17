@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications | Cryptware Partner Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script type="module" src="./js/config.js"></script>
+    <script type="module" src="./js/auth-manager.js"></script>
+    <script type="module" src="./js/utils/toast.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-['Inter']">
+    <!-- Include Header -->
+    <div id="header-container"></div>
+
+    <main class="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Notifications</h1>
+            <p class="text-gray-600">Stay updated with your referral activities and commission updates</p>
+        </div>
+
+        <!-- Notifications Container -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Notifications Header -->
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Recent Notifications</h2>
+                <div class="flex space-x-2">
+                    <button id="markAllRead" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                        Mark all as read
+                    </button>
+                    <button id="clearAll" class="text-sm text-gray-500 hover:text-gray-700 font-medium">
+                        Clear all
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notifications List -->
+            <div id="notificationsList" class="divide-y divide-gray-100">
+                <!-- Notifications will be loaded here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden text-center py-12">
+                <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-bell-slash text-gray-400 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No notifications</h3>
+                <p class="text-gray-500 max-w-sm mx-auto">You're all caught up! New notifications about your referrals and commissions will appear here.</p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="text-gray-500 mt-4">Loading notifications...</p>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { apiClient, CONFIG } from './js/config.js';
+        // import AuthManager from './js/auth-manager.js';
+        import Toast from './js/utils/toast.js';
+        
+
+        class NotificationsPage {
+            constructor() {
+                this.notifications = [];
+                this.init();
+            }
+
+            async init() {
+                // Check authentication
+                const isAuthenticated = await AuthManager.requireAuth('partner');
+                if (!isAuthenticated) return;
+
+                // Load header
+                await this.loadHeader();
+                
+                // Load notifications
+                await this.loadNotifications();
+                
+                // Setup event listeners
+                this.setupEventListeners();
+            }
+
+            async loadHeader() {
+                try {
+                    const response = await fetch('partner-header.html');
+                    const headerHTML = await response.text();
+                    document.getElementById('header-container').innerHTML = headerHTML;
+                } catch (error) {
+                    console.error('Error loading header:', error);
+                }
+            }
+
+            async loadNotifications() {
+                try {
+                    const response = await apiClient.get('/notifications?limit=50');
+                    
+                    if (response.data.success) {
+                        this.notifications = response.data.data.notifications || [];
+                        this.renderNotifications();
+                    } else {
+                        throw new Error(response.data.message);
+                    }
+                } catch (error) {
+                    console.error('Error loading notifications:', error);
+                    Toast.error('Failed to load notifications');
+                } finally {
+                    document.getElementById('loadingState').classList.add('hidden');
+                }
+            }
+
+            renderNotifications() {
+                const container = document.getElementById('notificationsList');
+                const emptyState = document.getElementById('emptyState');
+
+                if (this.notifications.length === 0) {
+                    container.classList.add('hidden');
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                container.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+
+                container.innerHTML = this.notifications.map(notification => `
+                    <div class="notification-item px-6 py-4 hover:bg-gray-50 transition-colors ${!notification.read_at ? 'bg-blue-50' : ''}" 
+                         data-id="${notification.id}">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center ${
+                                    this.getNotificationIcon(notification).bg
+                                }">
+                                    <i class="${this.getNotificationIcon(notification).icon} ${
+                                    this.getNotificationIcon(notification).color
+                                }"></i>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <p class="text-sm font-medium text-gray-900">
+                                        ${notification.title}
+                                    </p>
+                                    <span class="text-xs text-gray-500">
+                                        ${this.formatTime(notification.created_at)}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    ${notification.message}
+                                </p>
+                                ${notification.metadata ? `
+                                    <div class="mt-2 text-xs text-gray-500">
+                                        ${this.formatMetadata(notification.metadata)}
+                                    </div>
+                                ` : ''}
+                            </div>
+                            ${!notification.read_at ? `
+                                <button class="mark-read-btn flex-shrink-0 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                        data-id="${notification.id}">
+                                    Mark read
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            getNotificationIcon(notification) {
+                const types = {
+                    'payment_received': { icon: 'fas fa-money-bill-wave', bg: 'bg-green-100', color: 'text-green-600' },
+                    'referral_created': { icon: 'fas fa-handshake', bg: 'bg-blue-100', color: 'text-blue-600' },
+                    'status_updated': { icon: 'fas fa-sync-alt', bg: 'bg-purple-100', color: 'text-purple-600' },
+                    'payout_processed': { icon: 'fas fa-wallet', bg: 'bg-yellow-100', color: 'text-yellow-600' },
+                    'payment_completed': { icon: 'fas fa-check-circle', bg: 'bg-green-100', color: 'text-green-600' },
+                    'default': { icon: 'fas fa-bell', bg: 'bg-gray-100', color: 'text-gray-600' }
+                };
+
+                return types[notification.type] || types.default;
+            }
+
+            formatTime(timestamp) {
+                const now = new Date();
+                const time = new Date(timestamp);
+                const diffMs = now - time;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                if (diffDays < 7) return `${diffDays}d ago`;
+                
+                return time.toLocaleDateString();
+            }
+
+            formatMetadata(metadata) {
+                if (typeof metadata === 'string') return metadata;
+                
+                const items = [];
+                if (metadata.amount) items.push(`Amount: ₦${parseInt(metadata.amount).toLocaleString()}`);
+                if (metadata.referral_code) items.push(`Referral: ${metadata.referral_code}`);
+                if (metadata.status) items.push(`Status: ${metadata.status}`);
+                
+                return items.join(' • ');
+            }
+
+            setupEventListeners() {
+                // Mark all as read
+                document.getElementById('markAllRead').addEventListener('click', () => {
+                    this.markAllAsRead();
+                });
+
+                // Clear all notifications
+                document.getElementById('clearAll').addEventListener('click', () => {
+                    this.clearAllNotifications();
+                });
+
+                // Mark individual notification as read
+                document.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('mark-read-btn')) {
+                        const notificationId = e.target.getAttribute('data-id');
+                        this.markAsRead(notificationId);
+                    }
+                });
+            }
+
+            async markAsRead(notificationId) {
+                try {
+                    const response = await apiClient.patch(`/notifications/${notificationId}/read`);
+                    
+                    if (response.data.success) {
+                        // Update local state
+                        const notification = this.notifications.find(n => n.id === notificationId);
+                        if (notification) {
+                            notification.read_at = new Date().toISOString();
+                        }
+                        
+                        // Re-render
+                        this.renderNotifications();
+                        
+                        Toast.success('Notification marked as read');
+                    }
+                } catch (error) {
+                    console.error('Error marking notification as read:', error);
+                    Toast.error('Failed to mark notification as read');
+                }
+            }
+
+            async markAllAsRead() {
+                try {
+                    const unreadNotifications = this.notifications.filter(n => !n.read_at);
+                    
+                    // Mark all as read in UI immediately
+                    this.notifications.forEach(notification => {
+                        notification.read_at = new Date().toISOString();
+                    });
+                    this.renderNotifications();
+
+                    // Mark all as read in backend
+                    for (const notification of unreadNotifications) {
+                        await apiClient.patch(`/notifications/${notification.id}/read`);
+                    }
+
+                    Toast.success('All notifications marked as read');
+                } catch (error) {
+                    console.error('Error marking all notifications as read:', error);
+                    Toast.error('Failed to mark all notifications as read');
+                }
+            }
+
+            async clearAllNotifications() {
+                if (confirm('Are you sure you want to clear all notifications? This action cannot be undone.')) {
+                    // This would typically call a backend endpoint to clear notifications
+                    // For now, we'll just clear the local state
+                    this.notifications = [];
+                    this.renderNotifications();
+                    Toast.success('All notifications cleared');
+                }
+            }
+        }
+
+        // Initialize notifications page when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new NotificationsPage();
+        });
+    </script>
+</body>
+</html>
